@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAsk, updateAsk } from '../lib/supabase';
@@ -52,6 +52,27 @@ function buildMessage(
   return lines.filter((l) => l !== '').join('\n');
 }
 
+/* Generate the next 6 days starting from today (local timezone) */
+function getQuickDates() {
+  const today = new Date();
+  const toYMD = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const abbr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    return {
+      label: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : abbr[d.getDay()],
+      sub: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      value: toYMD(d),
+    };
+  });
+}
+
 /* ─── sub-components ────────────────────────────────────────────────── */
 function StepDots({ step, total }: { step: number; total: number }) {
   return (
@@ -85,9 +106,13 @@ export default function YesPage() {
   const [pickupSpot, setPickupSpot]       = useState('');
   const [receiverMsg, setReceiverMsg]     = useState('');
 
+  const [showDateInput, setShowDateInput] = useState(false);
+
   const [confirmed, setConfirmed] = useState(false);
   const [copied, setCopied]       = useState(false);
   const [sharing, setSharing]     = useState(false);
+
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -479,37 +504,92 @@ export default function YesPage() {
 
               {/* ── Step 2: When? ───────────────────────────────── */}
               {step === 2 && (
-                <div className="grid gap-4">
+                <div className="grid gap-3">
                   <div className="text-xl font-black">When do you want to go?</div>
-                  <div
-                    className="rounded-3xl p-5 text-center"
-                    style={{ background: 'linear-gradient(135deg,#fff1f7,#fce7f3)', border: '1.5px solid #fbcfe8' }}
+
+                  {/* Quick-pick day chips — no empty field, no iOS scroll wheel surprise */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {getQuickDates().map(({ label, sub, value }) => {
+                      const active = selectedDate === value && !showDateInput;
+                      return (
+                        <button
+                          key={value}
+                          onClick={() => { setSelectedDate(active ? '' : value); setShowDateInput(false); }}
+                          className="rounded-2xl py-3 px-2 flex flex-col items-center gap-0.5 transition-all"
+                          style={{
+                            border: active ? '2px solid #ec4899' : '1.5px solid #fbcfe8',
+                            background: active ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
+                            boxShadow: active ? '0 6px 16px -8px rgba(236,72,153,.45)' : 'none',
+                          }}
+                        >
+                          <span className="font-extrabold text-[13px] text-ink leading-none">{label}</span>
+                          <span className="text-[10px] text-ink-soft mt-0.5">{sub}</span>
+                          {active && <span className="text-[9px] text-pink-500 font-black mt-0.5">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Other date option */}
+                  <button
+                    onClick={() => {
+                      setShowDateInput(true);
+                      setSelectedDate('');
+                      // Give DOM time to render, then open the native picker
+                      setTimeout(() => {
+                        dateInputRef.current?.focus();
+                        dateInputRef.current?.showPicker?.();
+                      }, 60);
+                    }}
+                    className="rounded-2xl py-3 px-4 flex items-center gap-3 transition-all text-left w-full"
+                    style={{
+                      border: showDateInput ? '2px solid #ec4899' : '1.5px solid #fbcfe8',
+                      background: showDateInput ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
+                    }}
                   >
-                    <div className="text-3xl mb-2">📅</div>
+                    <span className="text-xl">📅</span>
+                    <div>
+                      <div className="font-extrabold text-[13px] text-ink">Different day…</div>
+                      <div className="text-[11px] text-ink-soft">
+                        {showDateInput && selectedDate ? fmtDate(selectedDate) : 'Pick from calendar'}
+                      </div>
+                    </div>
+                    {showDateInput && selectedDate && (
+                      <span className="ml-auto text-[10px] text-pink-500 font-black">✓</span>
+                    )}
+                  </button>
+
+                  {/* Hidden-but-real date input — visible only when "Different day" chosen */}
+                  {showDateInput && (
                     <input
+                      ref={dateInputRef}
                       type="date"
-                      className="input text-center"
+                      className="input"
                       min={new Date().toISOString().split('T')[0]}
                       value={selectedDate}
                       onChange={(e) => setSelectedDate(e.target.value)}
                     />
-                  </div>
+                  )}
+
+                  {/* Confirmation banner */}
                   {selectedDate && (
                     <motion.div
-                      initial={{ opacity: 0, y: 8 }}
+                      initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="text-center font-extrabold text-pink-600"
+                      className="text-center font-extrabold text-pink-600 text-[14px] py-1"
                     >
                       {fmtDate(selectedDate)} 🗓️
                     </motion.div>
                   )}
-                  <div className="label">Pick a time</div>
+
+                  {/* Time chips */}
+                  <div className="label -mb-1">Pick a time</div>
                   <div className="grid grid-cols-3 gap-2">
                     {TIME_CHIPS.map((t) => (
                       <button
                         key={t}
                         onClick={() => setSelectedTime(selectedTime === t ? '' : t)}
-                        className="rounded-xl py-2.5 font-extrabold text-[12px] transition-all"
+                        className="rounded-xl py-2 font-extrabold text-[11px] transition-all"
                         style={{
                           border: '1.5px solid ' + (selectedTime === t ? '#ec4899' : '#fbcfe8'),
                           background: selectedTime === t ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
