@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-family: 'Nunito', 'Noto Sans Sinhala', system-ui, sans-serif;
+  color: #831843;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #ffd6e9 0%, transparent 60%),
+    radial-gradient(900px 500px at -10% 60%, #ffe2ef 0%, transparent 65%),
+    linear-gradient(180deg, #fff7fb 0%, #ffeaf3 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.sin { font-family: 'Noto Sans Sinhala', 'Nunito', sans-serif; }
+.script { font-family: 'Caveat', cursive; }
+
+/* Buttons */
+.btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-2xl font-extrabold transition-all;
+  padding: 14px 18px;
+}
+.btn:active { transform: translateY(1px) scale(.99); }
+.btn-primary {
+  background: linear-gradient(135deg, #ec4899, #f472b6);
+  color: white;
+  box-shadow: 0 10px 24px -10px rgba(236,72,153,.7);
+}
+.btn-primary:hover { box-shadow: 0 14px 28px -8px rgba(236,72,153,.85); }
+.btn-ghost {
+  background: white; color: #831843;
+  border: 1.5px solid #fbcfe8;
+}
+.btn-ghost:hover { border-color: #f472b6; }
+.btn-block { width: 100%; }
+
+/* Inputs */
+.input, .textarea {
+  width: 100%;
+  border: 1.5px solid #fbcfe8;
+  background: #fff7fb;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit; color: #831843;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.input:focus, .textarea:focus {
+  border-color: #f472b6;
+  box-shadow: 0 0 0 4px rgba(236,72,153,.12);
+  background: white;
+}
+.label {
+  display: block; font-size: 12px; font-weight: 800;
+  color: #a44b73; margin-bottom: 6px;
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+
+.card {
+  background: white;
+  border-radius: 18px;
+  border: 1px solid #fce7f3;
+  box-shadow: 0 8px 24px -10px rgba(190, 24, 93, 0.35);
+}
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: 999px;
+  background: #fce7f3; color: #be185d;
+  font-size: 12px; font-weight: 800;
+}
+
+/* hide scrollbars on phone bodies */
+.no-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* Emoji rain animation — triggered when a place card is selected */
+@keyframes emojiDrop {
+  0%   { transform: translateY(-10px) rotate(-15deg); opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translateY(680px) rotate(200deg); opacity: 0; }
+}
+
+/* Full-viewport heart particle float (used by HeartParticles).
+   Particles start at bottom:-2rem and rise past the top of the viewport. */
+@keyframes bgFloat {
+  0%   { transform: translateY(0)      translateX(0px)   rotate(-10deg) scale(0.80); opacity: 0;    }
+  6%   {                                                                               opacity: 0.65; }
+  40%  { transform: translateY(-45vh)  translateX(14px)  rotate(  6deg) scale(1.00); }
+  94%  {                                                                               opacity: 0.45; }
+  100% { transform: translateY(-105vh) translateX(-8px)  rotate( -8deg) scale(0.70); opacity: 0;    }
+}

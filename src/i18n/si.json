@@ -1,0 +1,31 @@
+{
+  "greeting": "{{name}}, ඔයාගෙන් පොඩි දෙයක් අහන්න තියෙනවා...",
+  "fromX": "{{name}} ගෙන්",
+  "question": "ඔයා මාත් එක්ක date එකකට ‍යන්න එනවද සුදූ? 🌹",
+  "yes": "ඔව් අනේ! 💕",
+  "no": "බෑ",
+  "noFootnote": "* බෑ button එක නම් ලේසියෙන් අල්ලන්න බෑ 😏",
+  "noVanished": "බෑ button එක පැනලා ගියා 😏",
+  "taunts": [
+    "හොඳට හිතලා බලන්නකො 🙈",
+    "ඒ button එක අල්ලගන්න බැරිද? 🏃",
+    "ආයෙ ටිකක් හිතන්නකො 💭",
+    "තව පාරක් try කරන්නකො 😏",
+    "ළඟට ගිහින් click කරන්නකො 🤭"
+  ],
+  "yesTitle": "දැන් official ✨",
+  "official": "දැන් official නේ 💕",
+  "confirmed": "හරි එහෙනම්! 💕",
+  "confirmedSub": "{{name}} ඔයාට WhatsApp එකෙන් message කරයි.",
+  "yourPlan": "ඔයාලගේ plan එක",
+  "day": "දවස",
+  "time": "වෙලාව",
+  "with": "එක්ක",
+  "openWhatsApp": "💬 WhatsApp එක open කරන්න",
+  "replay": "↺ ආයෙ බලන්න",
+  "starsCaption": "ඔයාගේ නම තාරකා අතරේ ✦",
+  "pickDay": "දවසක් තෝරන්නකො",
+  "pickTime": "වෙලාවක් තෝරන්නකො",
+  "pickPlace": "තැනක් තෝරන්නකො",
+  "confirmPlan": "Plan එක confirm කරන්නකො"
+}

@@ -1,0 +1,31 @@
+{
+  "greeting": "{{name}}, I've got something to ask you…",
+  "fromX": "from {{name}}",
+  "question": "Will you go on a date with me? 🌹",
+  "yes": "Yes, let's go! 💕",
+  "no": "No",
+  "noFootnote": "* the No button needs to be somewhere else 😏",
+  "noVanished": "The No button ran away 😏",
+  "taunts": [
+    "Think carefully! 🙈",
+    "Don't stay there 🏃",
+    "Did you really think? 💭",
+    "Try harder bb 😏",
+    "This button isn't mine 🤭"
+  ],
+  "yesTitle": "It's official ✨",
+  "official": "It's official 💕",
+  "confirmed": "Confirmed! 💕",
+  "confirmedSub": "{{name}} will reach you on WhatsApp.",
+  "yourPlan": "your plan",
+  "day": "day",
+  "time": "time",
+  "with": "with",
+  "openWhatsApp": "💬 Open WhatsApp",
+  "replay": "↺ Watch celebration again",
+  "starsCaption": "your name in the stars ✦",
+  "pickDay": "Pick a day",
+  "pickTime": "Pick a time",
+  "pickPlace": "Pick a place",
+  "confirmPlan": "Confirm plan"
+}
