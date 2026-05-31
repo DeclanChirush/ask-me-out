@@ -25,6 +25,8 @@ export interface Ask {
   outfit_custom?: string | null;
   how_we_met?: string | null;
   expires_at?: string | null;
+  /** If set, this ask was spawned from a reusable card with this id */
+  parent_id?: string | null;
   no_count: number;
   opened_at?: string | null;
   answered_at?: string | null;

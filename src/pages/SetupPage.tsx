@@ -15,6 +15,7 @@ import FloatingHearts from '../components/FloatingHearts';
 import CoupleMatch from '../components/CoupleMatch';
 import QRCode from '../components/QRCode';
 import { addMyInvite } from '../lib/myInvites';
+import { addMyCard } from '../lib/myCards';
 import type { Lang } from '../types';
 
 const STEPS = [
@@ -158,16 +159,27 @@ export default function SetupPage() {
 
       const hash = photoKey ? `#${photoKey}` : '';
       playConfirm();
-      // Remember this invite on this device so the sender can come back
-      // to a "My Invites" dashboard and track every link they create.
-      addMyInvite({
-        id: ask.id,
-        sender_name: draft.sender_name,
-        receiver_name: draft.receiver_name,
-        hash,
-        created_at: ask.created_at || new Date().toISOString(),
-      });
-      setDone({ id: ask.id, url: `${window.location.origin}/ask/${ask.id}${hash}` });
+      if (draft.is_reusable) {
+        // Reusable card — one QR, many people scan and respond.
+        // The created ask becomes the template; the share URL is /card/:id.
+        addMyCard({
+          id: ask.id,
+          sender_name: draft.sender_name,
+          hash,
+          created_at: ask.created_at || new Date().toISOString(),
+        });
+        setDone({ id: ask.id, url: `${window.location.origin}/card/${ask.id}${hash}` });
+      } else {
+        // Regular one-person invite
+        addMyInvite({
+          id: ask.id,
+          sender_name: draft.sender_name,
+          receiver_name: draft.receiver_name,
+          hash,
+          created_at: ask.created_at || new Date().toISOString(),
+        });
+        setDone({ id: ask.id, url: `${window.location.origin}/ask/${ask.id}${hash}` });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -241,9 +253,9 @@ export default function SetupPage() {
 
             <button
               className="btn btn-ghost btn-block mt-3"
-              onClick={() => navigate(`/dashboard/${done.id}`)}
+              onClick={() => navigate(draft.is_reusable ? `/card/${done.id}/responses` : `/dashboard/${done.id}`)}
             >
-              📊 Open live dashboard
+              {draft.is_reusable ? '🎴 Open card dashboard' : '📊 Open live dashboard'}
             </button>
 
             <button
@@ -325,21 +337,58 @@ export default function SetupPage() {
                       placeholder="e.g. Kasun"
                     />
                   </div>
-                  <div>
-                    <label className="label">
-                      Their name
-                      <span className="text-ink-soft font-normal normal-case tracking-normal ml-1">(optional)</span>
-                    </label>
-                    <input
-                      className="input"
-                      value={draft.receiver_name}
-                      onChange={(e) => setDraft({ receiver_name: e.target.value })}
-                      placeholder="e.g. Nethmi"
-                    />
-                    <p className="text-[11px] text-ink-soft mt-1.5 leading-snug">
-                      Don't know their name yet? Leave this blank — they'll type it themselves when they open the link 💌
-                    </p>
-                  </div>
+
+                  {/* Reusable card toggle — one QR, many people scan & reply */}
+                  <button
+                    type="button"
+                    onClick={() => setDraft({ is_reusable: !draft.is_reusable })}
+                    className="text-left rounded-xl p-3 transition-all flex items-start gap-3"
+                    style={{
+                      border: '1.5px solid ' + (draft.is_reusable ? '#ec4899' : '#fbcfe8'),
+                      background: draft.is_reusable
+                        ? 'linear-gradient(135deg,#fff1f7,#fce7f3)'
+                        : 'white',
+                      boxShadow: draft.is_reusable
+                        ? '0 6px 16px -8px rgba(236,72,153,.4)'
+                        : 'none',
+                    }}
+                  >
+                    <span
+                      className="flex-none w-5 h-5 rounded-md grid place-items-center text-white text-[12px] font-black mt-0.5"
+                      style={{
+                        background: draft.is_reusable ? '#ec4899' : '#fff7fb',
+                        border: '1.5px solid ' + (draft.is_reusable ? '#ec4899' : '#fbcfe8'),
+                      }}
+                    >
+                      {draft.is_reusable ? '✓' : ''}
+                    </span>
+                    <div className="flex-1">
+                      <div className="font-extrabold text-[13px] text-ink">
+                        🎴 Reusable card <span className="text-pink-500 text-[10px] font-bold ml-1">one QR, many replies</span>
+                      </div>
+                      <div className="text-[11px] text-ink-soft mt-0.5 leading-snug">
+                        Show the same QR to anyone — each person types their name and gets their own personalised invite. See all replies in one place.
+                      </div>
+                    </div>
+                  </button>
+
+                  {!draft.is_reusable && (
+                    <div>
+                      <label className="label">
+                        Their name
+                        <span className="text-ink-soft font-normal normal-case tracking-normal ml-1">(optional)</span>
+                      </label>
+                      <input
+                        className="input"
+                        value={draft.receiver_name}
+                        onChange={(e) => setDraft({ receiver_name: e.target.value })}
+                        placeholder="e.g. Nethmi"
+                      />
+                      <p className="text-[11px] text-ink-soft mt-1.5 leading-snug">
+                        Don't know their name yet? Leave this blank — they'll type it themselves when they open the link 💌
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <label className="label">
                       Your WhatsApp number
@@ -389,12 +438,21 @@ export default function SetupPage() {
                   >
                     <span className="text-base">💡</span>
                     <span>
-                      The invite will be sent from{' '}
-                      <b className="text-pink-700">{draft.sender_name || '…'}</b>
-                      {draft.receiver_name ? (
-                        <> to <b className="text-pink-700">{draft.receiver_name}</b>.</>
+                      {draft.is_reusable ? (
+                        <>
+                          <b className="text-pink-700">{draft.sender_name || '…'}</b>'s reusable card —{' '}
+                          <i>anyone who scans the QR types their own name and gets a personalised invite</i>.
+                        </>
                       ) : (
-                        <> — <i>they'll add their own name on the cover page</i>.</>
+                        <>
+                          The invite will be sent from{' '}
+                          <b className="text-pink-700">{draft.sender_name || '…'}</b>
+                          {draft.receiver_name ? (
+                            <> to <b className="text-pink-700">{draft.receiver_name}</b>.</>
+                          ) : (
+                            <> — <i>they'll add their own name on the cover page</i>.</>
+                          )}
+                        </>
                       )}
                     </span>
                   </div>
@@ -578,7 +636,11 @@ export default function SetupPage() {
               cursor: canNext && !submitting ? 'pointer' : 'not-allowed',
             }}
           >
-            {step < LAST ? 'Continue →' : submitting ? 'Generating…' : 'Generate my link →'}
+            {step < LAST
+              ? 'Continue →'
+              : submitting
+                ? 'Generating…'
+                : draft.is_reusable ? 'Generate my card 🎴' : 'Generate my link →'}
           </button>
         </div>
 

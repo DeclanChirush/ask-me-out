@@ -43,6 +43,7 @@ export async function createAsk(initial: Partial<Ask>): Promise<Ask> {
     places: [],
     sender_whatsapp: initial.sender_whatsapp || null,
     personal_message: initial.personal_message || null,
+    parent_id: initial.parent_id || null,
     receiver_message: null,
     answer: null,
     chosen_place: null,
@@ -113,6 +114,24 @@ export async function bumpNo(id: string): Promise<void> {
   const ask = await getAsk(id);
   if (!ask) return;
   await updateAsk(id, { no_count: ask.no_count + 1 });
+}
+
+/* ---------------- Card → children query ---------------- */
+
+/** Find every ask spawned from a given card. Cross-device. */
+export async function listAsksByParent(parentId: string): Promise<Ask[]> {
+  if (supabase) {
+    const { data } = await supabase
+      .from('asks')
+      .select('*')
+      .eq('parent_id', parentId)
+      .order('created_at', { ascending: false });
+    return (data as Ask[]) || [];
+  }
+  const all = readAll();
+  return Object.values(all)
+    .filter((a) => a.parent_id === parentId)
+    .sort((a, b) => ((a.created_at || '') < (b.created_at || '') ? 1 : -1));
 }
 
 /* ---------------- subscriptions ---------------- */

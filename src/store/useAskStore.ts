@@ -12,6 +12,8 @@ interface DraftAsk {
   /** Optional — shown on the share screen so receiver can WhatsApp you back */
   sender_whatsapp: string;
   personal_message: string;
+  /** Reusable QR — one link, many people scan and respond */
+  is_reusable: boolean;
 }
 
 interface AskStore {
@@ -32,6 +34,7 @@ const initial: DraftAsk = {
   receiver_photos: [],
   sender_whatsapp: '',
   personal_message: '',
+  is_reusable: false,
 };
 
 export const useAskStore = create<AskStore>((set) => ({

@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import PhoneShell from '../components/PhoneShell';
 import FloatingHearts from '../components/FloatingHearts';
 import { listMyInvites, removeMyInvite, addMyInvite, inviteUrl, type MyInvite } from '../lib/myInvites';
-import { getAsk } from '../lib/supabase';
+import { listMyCards, removeMyCard, cardUrl, type MyCard } from '../lib/myCards';
+import { getAsk, listAsksByParent } from '../lib/supabase';
 import { playClick } from '../lib/sounds';
 import type { Ask } from '../types';
 
@@ -45,12 +46,35 @@ function statusOf(a: Ask | null): Status {
   return 'pending';
 }
 
+interface CardRow extends MyCard {
+  responses: number;
+  yes: number;
+}
+
 export default function MyInvitesPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
+  const [cards, setCards] = useState<CardRow[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
+    // Load cards + enrich with response counts
+    const savedCards = listMyCards();
+    setCards(savedCards.map((c) => ({ ...c, responses: 0, yes: 0 })));
+    (async () => {
+      const enrichedCards = await Promise.all(
+        savedCards.map(async (c) => {
+          const kids = await listAsksByParent(c.id);
+          return {
+            ...c,
+            responses: kids.length,
+            yes: kids.filter((k) => k.answer === 'yes').length,
+          } as CardRow;
+        }),
+      );
+      setCards(enrichedCards);
+    })();
+
     const saved = listMyInvites();
     // Render skeleton immediately, then enrich with live status
     setRows(saved.map((s) => ({ ...s, status: 'loading', no_count: 0, opened_at: null })));
@@ -89,6 +113,18 @@ export default function MyInvitesPage() {
     setRows((rs) => rs.filter((r) => r.id !== id));
   };
 
+  const handleCopyCard = (card: MyCard) => {
+    navigator.clipboard.writeText(cardUrl(card));
+    setCopiedId(card.id);
+    setTimeout(() => setCopiedId(null), 1400);
+  };
+
+  const handleRemoveCard = (id: string) => {
+    if (!confirm('Remove this card from your list?\n(The QR will still work for anyone who already scanned it.)')) return;
+    removeMyCard(id);
+    setCards((cs) => cs.filter((c) => c.id !== id));
+  };
+
   return (
     <PhoneShell>
       <div className="h-full flex flex-col overflow-hidden">
@@ -119,7 +155,7 @@ export default function MyInvitesPage() {
         <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-4 relative">
           <FloatingHearts count={8} />
 
-          {rows.length === 0 ? (
+          {rows.length === 0 && cards.length === 0 ? (
             <div className="text-center mt-12 px-4">
               <div className="text-5xl">💌</div>
               <div className="script text-pink-600 mt-2" style={{ fontSize: 28 }}>
@@ -136,7 +172,91 @@ export default function MyInvitesPage() {
               </button>
             </div>
           ) : (
-            <div className="grid gap-3 mt-2">
+            <>
+              {/* ── Reusable cards ───────────────────────────── */}
+              {cards.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-[11px] uppercase tracking-wider font-extrabold text-pink-500 mb-2 flex items-center gap-1.5">
+                    🎴 Reusable cards
+                  </div>
+                  <div className="grid gap-2">
+                    {cards.map((c, i) => (
+                      <motion.div
+                        key={c.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.35, delay: i * 0.04 }}
+                        className="card p-3 relative"
+                        style={{
+                          background: 'linear-gradient(135deg,#fff1f7,#fce7f3)',
+                          border: '1.5px solid #f9a8d4',
+                        }}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className="flex-none w-11 h-11 rounded-2xl grid place-items-center text-xl"
+                            style={{ background: 'white', border: '1px solid #fbcfe8' }}
+                          >
+                            🎴
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="font-extrabold text-[15px] text-ink truncate">
+                                {c.sender_name}'s card
+                              </div>
+                              <span
+                                className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                                style={{ background: '#fbcfe8', color: '#9d174d' }}
+                              >
+                                {c.responses} {c.responses === 1 ? 'reply' : 'replies'}
+                                {c.yes > 0 && ` · ${c.yes} 💕`}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-ink-soft mt-0.5">
+                              {timeAgo(c.created_at)} · one QR, many replies
+                            </div>
+
+                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                              <button
+                                onClick={() => { playClick(); navigate(`/card/${c.id}/responses`); }}
+                                className="btn btn-primary"
+                                style={{ padding: '5px 10px', fontSize: 11, borderRadius: 10 }}
+                              >
+                                📊 See replies
+                              </button>
+                              <button
+                                onClick={() => handleCopyCard(c)}
+                                className="btn btn-ghost"
+                                style={{ padding: '5px 10px', fontSize: 11, borderRadius: 10 }}
+                              >
+                                {copiedId === c.id ? '✓ Copied' : '🔗 Copy link'}
+                              </button>
+                              <button
+                                onClick={() => handleRemoveCard(c.id)}
+                                className="btn btn-ghost"
+                                style={{ padding: '5px 10px', fontSize: 11, borderRadius: 10, color: '#9ca3af' }}
+                                aria-label="Remove card"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ── One-off invites ───────────────────────────── */}
+              {rows.length > 0 && (
+                <div className={cards.length > 0 ? 'mt-5' : 'mt-2'}>
+                  {cards.length > 0 && (
+                    <div className="text-[11px] uppercase tracking-wider font-extrabold text-pink-500 mb-2">
+                      💌 One-off invites
+                    </div>
+                  )}
+                  <div className="grid gap-3">
               {rows.map((r, i) => {
                 const meta = STATUS_META[r.status];
                 return (
@@ -207,11 +327,14 @@ export default function MyInvitesPage() {
                   </motion.div>
                 );
               })}
+                  </div>
+                </div>
+              )}
 
-              <p className="text-center text-[10px] text-ink-soft mt-2 leading-relaxed px-4">
+              <p className="text-center text-[10px] text-ink-soft mt-3 leading-relaxed px-4">
                 This list lives only on this device — nobody else can see it. 🔒
               </p>
-            </div>
+            </>
           )}
         </div>
       </div>
