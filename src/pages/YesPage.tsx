@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAsk, updateAsk } from '../lib/supabase';
@@ -390,24 +390,50 @@ export default function YesPage() {
           {/* Share buttons */}
           <div className="px-5 pt-3 pb-8">
             <div className="grid gap-2">
-              {/* WhatsApp direct — only shown when asker provided their number */}
-              {ask.sender_whatsapp && (
-                <a
-                  href={(() => {
-                    const digits = ask.sender_whatsapp!.replace(/\D/g, '');
-                    // Normalise to international format: 0771234567 → 94771234567
-                    const e164 = digits.startsWith('94') ? digits : '94' + digits.replace(/^0/, '');
-                    return `https://wa.me/${e164}?text=${encodeURIComponent(planMessage)}`;
-                  })()}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-block"
-                  style={{ background: '#25D366', color: 'white', boxShadow: '0 10px 22px -10px rgba(37,211,102,.55)' }}
-                  onClick={() => playClick()}
-                >
-                  💬 Send to {ask.sender_name} on WhatsApp
-                </a>
-              )}
+              {/* WhatsApp direct — only shown when asker provided their number.
+                  Why api.whatsapp.com/send and not wa.me?
+                  Several Android WhatsApp versions silently mangle multi-byte
+                  UTF-8 emojis (💌, 💕, 📍 …) in wa.me pre-filled text — they
+                  arrive as � replacement chars. The documented Click-to-Chat
+                  endpoint at api.whatsapp.com handles UTF-8 correctly. */}
+              {ask.sender_whatsapp && (() => {
+                const digits = ask.sender_whatsapp!.replace(/\D/g, '');
+                // Normalise to international format: 0771234567 → 94771234567
+                const e164 = digits.startsWith('94') ? digits : '94' + digits.replace(/^0/, '');
+                const waHref = `https://api.whatsapp.com/send?phone=${e164}&text=${encodeURIComponent(planMessage)}`;
+
+                const handleClick = async (e: ReactMouseEvent<HTMLAnchorElement>) => {
+                  playClick();
+                  // Belt-and-braces: also copy the message to clipboard so even
+                  // if the pre-fill loses anything in transit, the user can
+                  // long-press → paste in WhatsApp and the full text is there.
+                  try { await navigator.clipboard.writeText(planMessage); } catch { /* ignore */ }
+                  // If the OS has a native share sheet, prefer it — it never
+                  // mangles emojis because nothing gets URL-encoded.
+                  if (navigator.share) {
+                    e.preventDefault();
+                    try {
+                      await navigator.share({ text: planMessage });
+                    } catch {
+                      // User dismissed — fall back to opening WhatsApp directly
+                      window.open(waHref, '_blank', 'noopener,noreferrer');
+                    }
+                  }
+                };
+
+                return (
+                  <a
+                    href={waHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-block"
+                    style={{ background: '#25D366', color: 'white', boxShadow: '0 10px 22px -10px rgba(37,211,102,.55)' }}
+                    onClick={handleClick}
+                  >
+                    💬 Send to {ask.sender_name} on WhatsApp
+                  </a>
+                );
+              })()}
               <button
                 className="btn btn-primary btn-block"
                 onClick={async () => {
