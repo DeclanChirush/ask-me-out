@@ -94,7 +94,10 @@ export default function SetupPage() {
   const back = () => { playClick(); goToStep(Math.max(0, step - 1)); };
 
   const canNext = (() => {
-    if (step === 0) return draft.sender_name.trim() && draft.receiver_name.trim();
+    // Receiver name is optional now — if you met them randomly and don't
+    // know their name yet, leave it blank and they'll type it themselves
+    // on the cover page when they open the link.
+    if (step === 0) return !!draft.sender_name.trim();
     return true;
   })();
 
@@ -188,7 +191,7 @@ export default function SetupPage() {
               <div className="text-4xl relative">💌</div>
               <div className="text-xl font-black mt-1 relative">Your link is ready!</div>
               <div className="text-sm opacity-90 mt-1 relative">
-                Send it to <b>{draft.receiver_name || 'them'}</b> and see what they say 💕
+                Send it to <b>{draft.receiver_name || 'them ✨'}</b> and see what they say 💕
               </div>
             </div>
 
@@ -323,13 +326,19 @@ export default function SetupPage() {
                     />
                   </div>
                   <div>
-                    <label className="label">Their name</label>
+                    <label className="label">
+                      Their name
+                      <span className="text-ink-soft font-normal normal-case tracking-normal ml-1">(optional)</span>
+                    </label>
                     <input
                       className="input"
                       value={draft.receiver_name}
                       onChange={(e) => setDraft({ receiver_name: e.target.value })}
                       placeholder="e.g. Nethmi"
                     />
+                    <p className="text-[11px] text-ink-soft mt-1.5 leading-snug">
+                      Don't know their name yet? Leave this blank — they'll type it themselves when they open the link 💌
+                    </p>
                   </div>
                   <div>
                     <label className="label">
@@ -380,9 +389,13 @@ export default function SetupPage() {
                   >
                     <span className="text-base">💡</span>
                     <span>
-                      The invite will be sent to{' '}
-                      <b className="text-pink-700">{draft.receiver_name || '…'}</b> from{' '}
-                      <b className="text-pink-700">{draft.sender_name || '…'}</b>.
+                      The invite will be sent from{' '}
+                      <b className="text-pink-700">{draft.sender_name || '…'}</b>
+                      {draft.receiver_name ? (
+                        <> to <b className="text-pink-700">{draft.receiver_name}</b>.</>
+                      ) : (
+                        <> — <i>they'll add their own name on the cover page</i>.</>
+                      )}
                     </span>
                   </div>
                 </div>

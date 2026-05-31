@@ -28,6 +28,8 @@ export default function ReceiverPage() {
   const [loading, setLoading]             = useState(true);
   const [attempts, setAttempts]           = useState(0);
   const [coverOpen, setCoverOpen]         = useState(false);
+  const [nameInput, setNameInput]         = useState('');
+  const [savingName, setSavingName]       = useState(false);
   const buttonsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +80,25 @@ export default function ReceiverPage() {
 
   // ── Cover page — beautiful "envelope" before the invite opens ──
   if (ask && !coverOpen) {
+    const hasName = !!ask.receiver_name?.trim();
+
+    const handleSaveName = async () => {
+      const trimmed = nameInput.trim();
+      if (!trimmed || !id) return;
+      setSavingName(true);
+      const updated = await updateAsk(id, { receiver_name: trimmed });
+      if (updated) {
+        setAsk(updated);
+        setCurrent(updated);
+      } else {
+        // Fallback: still update local UI so they can keep going
+        setAsk({ ...ask, receiver_name: trimmed });
+      }
+      setSavingName(false);
+      playPageFlip();
+      setCoverOpen(true);
+    };
+
     return (
       <PhoneShell>
         <div className="relative h-full flex flex-col items-center justify-center px-6 text-center overflow-hidden">
@@ -109,77 +130,157 @@ export default function ReceiverPage() {
             for
           </motion.div>
 
-          {/* Receiver's name — big handwritten */}
-          <motion.h1
-            initial={{ opacity: 0, scale: 0.85, rotate: -2 }}
-            animate={{ opacity: 1, scale: 1, rotate: -2 }}
-            transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.25 }}
-            className="script leading-none mt-2"
-            style={{
-              fontSize: 68,
-              background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 45%, #be185d 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 6px 14px rgba(236,72,153,.35))',
-              maxWidth: '100%',
-              wordBreak: 'break-word',
-            }}
-          >
-            {ask.receiver_name}
-          </motion.h1>
+          {hasName ? (
+            <>
+              {/* Receiver's name — calligraphy */}
+              <motion.h1
+                initial={{ opacity: 0, scale: 0.85, rotate: -2 }}
+                animate={{ opacity: 1, scale: 1, rotate: -2 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.25 }}
+                className="romance leading-none mt-2"
+                style={{
+                  fontSize: 64,
+                  fontWeight: 700,
+                  background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 45%, #be185d 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  filter: 'drop-shadow(0 6px 14px rgba(236,72,153,.35))',
+                  maxWidth: '100%',
+                  wordBreak: 'break-word',
+                }}
+              >
+                {ask.receiver_name}
+              </motion.h1>
 
-          {/* Hand-drawn underline */}
-          <motion.span
-            initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.7, delay: 0.6 }}
-            className="ink-underline mt-1"
-            style={{ width: 180, transformOrigin: 'left center' }}
-          />
+              {/* Hand-drawn underline */}
+              <motion.span
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.7, delay: 0.6 }}
+                className="ink-underline mt-1"
+                style={{ width: 180, transformOrigin: 'left center' }}
+              />
 
-          {/* "from X" */}
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-            className="text-[13px] italic text-ink-soft mt-5"
-          >
-            a note from <b className="text-pink-600 not-italic">{ask.sender_name}</b>
-          </motion.div>
+              {/* "from X" */}
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.7 }}
+                className="text-[14px] italic text-ink-soft mt-5"
+              >
+                a note from <span className="romance text-pink-600 not-italic" style={{ fontSize: 22, fontWeight: 600 }}>{ask.sender_name}</span>
+              </motion.div>
 
-          {/* Envelope illustration */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.85 }}
-            className="my-7 text-6xl"
-            style={{ filter: 'drop-shadow(0 8px 14px rgba(236,72,153,.35))' }}
-          >
-            💌
-          </motion.div>
+              {/* Envelope illustration */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.85 }}
+                className="my-7 text-6xl"
+                style={{ filter: 'drop-shadow(0 8px 14px rgba(236,72,153,.35))' }}
+              >
+                💌
+              </motion.div>
 
-          {/* Open CTA */}
-          <motion.button
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 1.0 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => { playPageFlip(); setCoverOpen(true); }}
-            className="btn btn-primary"
-            style={{ fontSize: 16, padding: '14px 36px' }}
-          >
-            Open me ✨
-          </motion.button>
+              {/* Open CTA */}
+              <motion.button
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 1.0 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => { playPageFlip(); setCoverOpen(true); }}
+                className="btn btn-primary"
+                style={{ fontSize: 16, padding: '14px 36px' }}
+              >
+                Open me ✨
+              </motion.button>
 
-          {/* Hint text */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 1.3 }}
-            className="text-[11px] text-ink-soft italic mt-4"
-          >
-            tap to turn the page →
-          </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 1.3 }}
+                className="text-[11px] text-ink-soft italic mt-4"
+              >
+                tap to turn the page →
+              </motion.div>
+            </>
+          ) : (
+            <>
+              {/* Name-entry flow — sender didn't know receiver's name */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.25 }}
+                className="romance leading-none mt-2 text-pink-500"
+                style={{ fontSize: 52, fontWeight: 600 }}
+              >
+                you ♡
+              </motion.div>
+
+              <motion.span
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.7, delay: 0.55 }}
+                className="ink-underline mt-1"
+                style={{ width: 120, transformOrigin: 'left center' }}
+              />
+
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.65 }}
+                className="text-[14px] italic text-ink-soft mt-5"
+              >
+                a note from <span className="romance text-pink-600 not-italic" style={{ fontSize: 22, fontWeight: 600 }}>{ask.sender_name}</span>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, scale: 0.7 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.8 }}
+                className="mt-5 text-5xl"
+                style={{ filter: 'drop-shadow(0 8px 14px rgba(236,72,153,.35))' }}
+              >
+                💌
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.95 }}
+                className="mt-5 w-full max-w-[280px]"
+              >
+                <label className="block text-[12px] font-extrabold uppercase tracking-[.2em] text-pink-500 mb-2 text-center">
+                  what's your name? ♡
+                </label>
+                <input
+                  className="input text-center romance"
+                  style={{ fontSize: 22, fontWeight: 600 }}
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="type your name…"
+                  autoFocus
+                  maxLength={40}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={!nameInput.trim() || savingName}
+                  className="btn btn-primary btn-block mt-3"
+                  style={{
+                    fontSize: 15,
+                    opacity: nameInput.trim() && !savingName ? 1 : 0.5,
+                    cursor: nameInput.trim() && !savingName ? 'pointer' : 'not-allowed',
+                  }}
+                >
+                  {savingName ? 'opening…' : 'Open my letter ✨'}
+                </button>
+                <p className="text-[10px] text-ink-soft italic mt-2 text-center">
+                  so we can write this just for you 💕
+                </p>
+              </motion.div>
+            </>
+          )}
 
           {/* Language toggle in the top-right */}
           <div className="absolute top-3 right-4 z-10">
@@ -217,37 +318,104 @@ export default function ReceiverPage() {
           <LanguageToggle />
         </div>
 
-        {/* "From X" pill */}
-        <div className="px-5 pt-12 text-center relative">
-          <div
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider text-pink-600"
-            style={{ background: 'rgba(255,255,255,.7)', border: '1px solid #fbcfe8' }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-pink-500" />
-            {t('fromX', { name: ask.sender_name })}
-          </div>
-
+        {/* ── Romantic greeting block ───────────────────────────── */}
+        <div className="px-5 pt-10 text-center relative">
+          {/* Washi tape chapter label */}
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="mt-4"
+            initial={{ opacity: 0, y: -6, rotate: -2 }}
+            animate={{ opacity: 1, y: 0, rotate: -2 }}
+            transition={{ duration: 0.5 }}
+            className="washi"
           >
-            <div className={`text-[22px] font-extrabold leading-tight text-ink ${i18n.language === 'si' ? 'sin' : ''}`}>
-              <span className="text-pink-600">{ask.receiver_name}</span>
-              {', '}
-              {t('greeting', { name: '' }).replace('{{name}},', '').replace(', ', '')}
-            </div>
+            ~ {t('fromX', { name: ask.sender_name })} ~
+          </motion.div>
+
+          {/* "dear" */}
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="text-[11px] uppercase tracking-[.4em] font-extrabold text-pink-500 mt-5"
+          >
+            dear
+          </motion.div>
+
+          {/* Receiver's name in romantic calligraphy */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, rotate: -1 }}
+            animate={{ opacity: 1, scale: 1, rotate: -1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.25 }}
+            className={`romance leading-none mt-1.5 ${i18n.language === 'si' ? 'sin' : ''}`}
+            style={{
+              fontSize: i18n.language === 'si' ? 38 : 48,
+              fontWeight: 700,
+              background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 45%, #be185d 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              filter: 'drop-shadow(0 6px 14px rgba(236,72,153,.35))',
+              wordBreak: 'break-word',
+            }}
+          >
+            {ask.receiver_name}
+          </motion.div>
+
+          <motion.span
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 0.7, delay: 0.55 }}
+            className="ink-underline mx-auto mt-1 block"
+            style={{ width: 140, transformOrigin: 'center' }}
+          />
+
+          {/* Greeting in romantic body */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.55 }}
+            className={`text-[15px] italic text-ink-soft mt-3 leading-snug ${i18n.language === 'si' ? 'sin' : ''}`}
+          >
+            {t('greeting', { name: '' }).replace('{{name}},', '').replace(/^,?\s*/, '')}
           </motion.div>
         </div>
 
-        {/* Couple match / star constellation */}
+        {/* ── Polaroid-framed constellation / couple match ───────── */}
         <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.0, delay: 0.2 }}
-          className="px-5 pt-5"
+          initial={{ opacity: 0, y: 14, rotate: -1.5 }}
+          animate={{ opacity: 1, y: 0, rotate: -1.5 }}
+          transition={{ type: 'spring', stiffness: 180, damping: 18, delay: 0.4 }}
+          className="mx-6 mt-6 relative"
+          style={{
+            background: 'white',
+            padding: '10px 10px 32px',
+            borderRadius: 14,
+            border: '1px solid #fce7f3',
+            boxShadow: '0 14px 28px -10px rgba(190,24,93,.30)',
+          }}
         >
+          {/* Washi tape strips holding the polaroid down */}
+          <span
+            aria-hidden
+            className="absolute -top-2 left-6 select-none"
+            style={{
+              width: 56, height: 14,
+              background: 'repeating-linear-gradient(45deg, rgba(244,114,182,.55) 0 5px, rgba(252,207,232,.7) 5px 10px)',
+              transform: 'rotate(-6deg)',
+              borderRadius: 2,
+              boxShadow: '0 2px 4px rgba(190,24,93,.2)',
+            }}
+          />
+          <span
+            aria-hidden
+            className="absolute -top-2 right-6 select-none"
+            style={{
+              width: 56, height: 14,
+              background: 'repeating-linear-gradient(45deg, rgba(244,114,182,.55) 0 5px, rgba(252,207,232,.7) 5px 10px)',
+              transform: 'rotate(8deg)',
+              borderRadius: 2,
+              boxShadow: '0 2px 4px rgba(190,24,93,.2)',
+            }}
+          />
+
           {hasPhotos ? (
             <CoupleMatch
               senderPhotos={senderPhotos}
@@ -257,8 +425,8 @@ export default function ReceiverPage() {
             />
           ) : (
             <div
-              className="rounded-3xl overflow-hidden relative shadow-pink-lg"
-              style={{ background: 'linear-gradient(180deg, #1f0a1a, #3a0f2a)', padding: '20px 8px' }}
+              className="rounded-xl overflow-hidden relative"
+              style={{ background: 'linear-gradient(180deg, #1f0a1a, #3a0f2a)', padding: '18px 6px' }}
             >
               <StarConstellation name={ask.receiver_name} />
               <div
@@ -269,30 +437,61 @@ export default function ReceiverPage() {
               </div>
             </div>
           )}
+
+          {/* Polaroid handwritten caption */}
+          <div
+            className="absolute left-0 right-0 text-center script text-pink-600"
+            style={{ bottom: 8, fontSize: 18, transform: 'rotate(-1deg)' }}
+          >
+            you & me ♡
+          </div>
         </motion.div>
 
-        {/* Personal message bubble */}
+        {/* ── Personal message — handwritten letter card ────────── */}
         {ask.personal_message && (
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.35 }}
-            className="relative mx-5 mt-4 rounded-2xl px-4 py-3 italic text-[13px] text-ink-soft"
-            style={{ background: 'rgba(255,255,255,.85)', border: '1px solid #fbcfe8' }}
+            initial={{ opacity: 0, y: 14, rotate: 1 }}
+            animate={{ opacity: 1, y: 0, rotate: 1 }}
+            transition={{ duration: 0.9, delay: 0.5 }}
+            className="relative mx-6 mt-5 px-4 py-4"
+            style={{
+              background: 'linear-gradient(180deg, #fffdf7 0%, #fff6fb 100%)',
+              backgroundImage:
+                'repeating-linear-gradient(180deg, transparent 0 24px, rgba(244,114,182,.18) 24px 25px)',
+              border: '1px solid #fbcfe8',
+              borderRadius: 12,
+              boxShadow: '0 8px 20px -10px rgba(190,24,93,.25)',
+            }}
           >
-            <div className="absolute -top-3 left-3 text-3xl text-pink-300 leading-none">"</div>
-            {ask.personal_message}
+            <div className="absolute -top-4 left-3 text-5xl text-pink-300 leading-none romance" style={{ fontWeight: 700 }}>"</div>
+            <div className={`script text-pink-700 leading-snug ${i18n.language === 'si' ? 'sin' : ''}`} style={{ fontSize: 19 }}>
+              {ask.personal_message}
+            </div>
+            <div className="text-right text-[12px] italic text-ink-soft mt-2">
+              — <span className="romance text-pink-600 not-italic" style={{ fontSize: 18, fontWeight: 600 }}>{ask.sender_name}</span>
+            </div>
           </motion.div>
         )}
 
-        {/* The question */}
+        {/* ── The question — big romantic calligraphy ───────────── */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.7 }}
+          initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, delay: 0.5, type: 'spring' }}
-          className="px-6 pt-5 text-center"
+          transition={{ duration: 0.6, delay: 0.65, type: 'spring' }}
+          className="px-6 pt-7 text-center relative"
         >
-          <div className={`text-2xl font-extrabold leading-tight text-pink-700 ${i18n.language === 'si' ? 'sin' : ''}`}>
+          {/* Hearts framing the question */}
+          <span className="absolute select-none pointer-events-none text-pink-300" style={{ top: 6, left: 14, fontSize: 14, transform: 'rotate(-12deg)' }}>♡</span>
+          <span className="absolute select-none pointer-events-none text-pink-300" style={{ top: 14, right: 18, fontSize: 12, transform: 'rotate(15deg)' }}>♡</span>
+
+          <div
+            className={`romance leading-tight text-pink-700 ${i18n.language === 'si' ? 'sin' : ''}`}
+            style={{
+              fontSize: i18n.language === 'si' ? 28 : 34,
+              fontWeight: 700,
+              filter: 'drop-shadow(0 4px 10px rgba(236,72,153,.25))',
+            }}
+          >
             {t('question')}
           </div>
         </motion.div>
@@ -303,7 +502,7 @@ export default function ReceiverPage() {
             <YesButton onClick={handleYes} glow={attempts >= 3} label={t('yes')} />
           </div>
           <NoButton onAttempt={handleNoAttempt} maxAttempts={5} containerRef={buttonsRef} />
-          <div className="absolute left-0 right-0 bottom-0 text-center text-[11px] italic text-ink-soft sin px-6">
+          <div className={`absolute left-0 right-0 bottom-0 text-center text-[11px] italic text-ink-soft px-6 ${i18n.language === 'si' ? 'sin' : ''}`}>
             {t('noFootnote')}
           </div>
         </div>
