@@ -11,6 +11,8 @@ interface DraftAsk {
   receiver_photos: string[];
   /** Optional — shown on the share screen so receiver can WhatsApp you back */
   sender_whatsapp: string;
+  /** Optional social handle: e.g. "@kasun_lk · Insta" */
+  sender_social: string;
   personal_message: string;
   /** Reusable QR — one link, many people scan and respond */
   is_reusable: boolean;
@@ -33,6 +35,7 @@ const initial: DraftAsk = {
   sender_photos: [],
   receiver_photos: [],
   sender_whatsapp: '',
+  sender_social: '',
   personal_message: '',
   is_reusable: false,
 };

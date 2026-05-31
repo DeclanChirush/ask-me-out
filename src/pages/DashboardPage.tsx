@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAsk, subscribeAsk } from '../lib/supabase';
 import { PLACES } from '../store/useAskStore';
+import { importKeyB64, decryptText } from '../lib/crypto';
+import { listMyInvites } from '../lib/myInvites';
+import { listMyCards } from '../lib/myCards';
 import type { Ask, FeedEvent } from '../types';
 import PhoneShell from '../components/PhoneShell';
 import FloatingHearts from '../components/FloatingHearts';
@@ -90,6 +93,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const [ask, setAsk] = useState<Ask | null>(null);
   const [copied, setCopied] = useState(false);
+  const [contacts, setContacts] = useState<{ wa: string; social: string }>({ wa: '', social: '' });
 
   useEffect(() => {
     if (!id) return;
@@ -100,6 +104,40 @@ export default function DashboardPage() {
     const unsub = subscribeAsk(id, (a) => setAsk(a));
     return () => unsub();
   }, [id]);
+
+  /* Decrypt receiver contact info. The encryption key lives only in URL
+     hashes — for the sender we recover it from localStorage. We check
+     both the direct invite list AND the parent-card list (since a child
+     spawned from a card shares its parent's key). */
+  useEffect(() => {
+    if (!ask) return;
+    if (!ask.receiver_whatsapp && !ask.receiver_social) {
+      setContacts({ wa: '', social: '' });
+      return;
+    }
+    // Where might the key be?
+    //  1. window.location.hash (sender came in via shared link)
+    //  2. my_invites entry for this ask (one-off invite)
+    //  3. my_cards entry for the parent (this ask spawned from a card)
+    const hashKey =
+      window.location.hash.slice(1) ||
+      (listMyInvites().find((i) => i.id === ask.id)?.hash || '').replace(/^#/, '') ||
+      (ask.parent_id
+        ? (listMyCards().find((c) => c.id === ask.parent_id)?.hash || '').replace(/^#/, '')
+        : '');
+    if (!hashKey) return;
+
+    (async () => {
+      try {
+        const key = await importKeyB64(hashKey);
+        const wa     = await decryptText(ask.receiver_whatsapp || '', key);
+        const social = await decryptText(ask.receiver_social   || '', key);
+        setContacts({ wa, social });
+      } catch {
+        setContacts({ wa: '', social: '' });
+      }
+    })();
+  }, [ask]);
 
   const feed = useMemo(() => (ask ? buildFeed(ask) : []), [ask]);
   const url = ask ? `${window.location.origin}/ask/${ask.id}` : '';
@@ -145,6 +183,62 @@ export default function DashboardPage() {
                 : 'Share the link with them to begin.'}
             </div>
           </div>
+
+          {/* Receiver's contact info — only visible to sender, decrypted client-side */}
+          {(contacts.wa || contacts.social) && (
+            <div
+              className="rounded-2xl p-3 mt-3 relative"
+              style={{
+                background: 'linear-gradient(135deg, #fff1f7, #fce7f3)',
+                border: '1.5px solid #f9a8d4',
+              }}
+            >
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-pink-600">
+                  🔒 {ask.receiver_name} left contact
+                </span>
+              </div>
+              {contacts.wa && (
+                <a
+                  href={`https://api.whatsapp.com/send?phone=${(contacts.wa.replace(/\D/g, '').startsWith('94')
+                    ? contacts.wa.replace(/\D/g, '')
+                    : '94' + contacts.wa.replace(/\D/g, '').replace(/^0/, ''))}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[13px] font-extrabold"
+                  style={{ background: 'white', border: '1px solid #fbcfe8', color: '#831843' }}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span>📱</span>
+                    <span>{contacts.wa}</span>
+                  </span>
+                  <span className="text-[10px] uppercase tracking-wider text-green-700">Open ›</span>
+                </a>
+              )}
+              {contacts.social && (
+                <div
+                  className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-[13px] font-extrabold mt-1.5"
+                  style={{ background: 'white', border: '1px solid #fbcfe8', color: '#831843' }}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span>💬</span>
+                    <span>{contacts.social}</span>
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(contacts.social);
+                    }}
+                    className="text-[10px] uppercase tracking-wider text-pink-600"
+                  >
+                    Copy ›
+                  </button>
+                </div>
+              )}
+              <div className="text-[10px] text-ink-soft mt-1.5 italic">
+                Only you can see this — decrypted in your browser, never on the server.
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-3 gap-2 mt-3">
             <Stat label="Link opened" value={ask.opened_at ? '✓' : '—'} accent={ask.opened_at ? '#16a34a' : '#a44b73'} />

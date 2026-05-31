@@ -7,6 +7,7 @@ import {
   generatePhotoKey,
   exportKeyB64,
   encryptPhotoPayload,
+  encryptText,
 } from '../lib/crypto';
 import { compressImage } from '../lib/imageUtils';
 import { playStep, playConfirm, playPhotoAdd, playClick, playPageFlip } from '../lib/sounds';
@@ -134,30 +135,34 @@ export default function SetupPage() {
   async function submit() {
     setSubmitting(true);
     try {
-      // Encrypt photos client-side; key goes in URL hash only
+      // Always generate a key — even with no photos — so contact info
+      // (WhatsApp, socials) can be encrypted. Key goes in URL hash only,
+      // never to the server.
+      const key = await generatePhotoKey();
+      const photoKey = await exportKeyB64(key);
       let photos: string[] = [];
-      let photoKey: string | null = null;
-
       if (draft.sender_photos.length > 0 || draft.receiver_photos.length > 0) {
-        const key = await generatePhotoKey();
-        photoKey = await exportKeyB64(key);
-        const blob = await encryptPhotoPayload(
+        photos = [await encryptPhotoPayload(
           { s: draft.sender_photos, r: draft.receiver_photos },
           key,
-        );
-        photos = [blob];
+        )];
       }
+
+      // Encrypt contact info (privacy — never stored in plaintext)
+      const encWhatsapp = await encryptText(draft.sender_whatsapp || null, key);
+      const encSocial   = await encryptText(draft.sender_social   || null, key);
 
       const ask = await createAsk({
         sender_name: draft.sender_name,
         receiver_name: draft.receiver_name,
         lang: draft.lang,
         photos,
-        sender_whatsapp: draft.sender_whatsapp || null,
+        sender_whatsapp: encWhatsapp,
+        sender_social: encSocial,
         personal_message: draft.personal_message || null,
       });
 
-      const hash = photoKey ? `#${photoKey}` : '';
+      const hash = `#${photoKey}`;
       playConfirm();
       if (draft.is_reusable) {
         // Reusable card — one QR, many people scan and respond.
@@ -430,6 +435,23 @@ export default function SetupPage() {
                     </div>
                     <p className="text-[11px] text-ink-soft mt-1.5 leading-snug">
                       If you add this, they can send their answer directly to your WhatsApp 💬
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      Your social handle
+                      <span className="text-ink-soft font-normal normal-case tracking-normal ml-1">(optional)</span>
+                    </label>
+                    <input
+                      className="input"
+                      value={draft.sender_social}
+                      onChange={(e) => setDraft({ sender_social: e.target.value })}
+                      placeholder="e.g. @kasun_lk · Insta"
+                      maxLength={60}
+                    />
+                    <p className="text-[11px] text-ink-soft mt-1.5 leading-snug">
+                      Insta / FB / TikTok / Snap — whatever you check. They'll see this so they can DM you back 📱
                     </p>
                   </div>
                   <div

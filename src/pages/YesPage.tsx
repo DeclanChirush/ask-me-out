@@ -2,6 +2,7 @@ import { type MouseEvent as ReactMouseEvent, useEffect, useRef, useState } from 
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAsk, updateAsk } from '../lib/supabase';
+import { importKeyB64, encryptText, decryptText } from '../lib/crypto';
 import { playStep, playConfirm, playClick, playPageFlip } from '../lib/sounds';
 import { PLACES, OUTFIT_COLORS, PICKUP_OPTIONS } from '../store/useAskStore';
 import type { Ask } from '../types';
@@ -174,6 +175,15 @@ export default function YesPage() {
   const [customOutfit, setCustomOutfit]   = useState('');
   const [pickupSpot, setPickupSpot]       = useState('');
   const [receiverMsg, setReceiverMsg]     = useState('');
+  const [receiverWhatsapp, setReceiverWhatsapp] = useState('');
+  const [receiverSocial, setReceiverSocial]     = useState('');
+
+  /* Decrypted sender contact info (decrypted using URL hash key) */
+  const [senderWaPlain, setSenderWaPlain]         = useState('');
+  const [senderSocialPlain, setSenderSocialPlain] = useState('');
+  /** Live AES-GCM key derived from the URL hash, used to encrypt receiver
+      contact info before writing it back. Null if no hash (no key). */
+  const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
 
   const [showDateInput, setShowDateInput] = useState(false);
 
@@ -199,7 +209,24 @@ export default function YesPage() {
           setPickupSpot(a.how_we_met || '');
           setReceiverMsg(a.receiver_message || '');
           setConfirmed(true);
-          setStep(6);
+          setStep(7);
+        }
+
+        // Decrypt sender's contact info using the key in the URL hash.
+        // The key only lives in the URL fragment so the server never sees it.
+        const keyB64 = window.location.hash.slice(1);
+        if (keyB64) {
+          try {
+            const key = await importKeyB64(keyB64);
+            setCryptoKey(key);
+            setSenderWaPlain(await decryptText(a.sender_whatsapp || '', key));
+            setSenderSocialPlain(await decryptText(a.sender_social   || '', key));
+          } catch {
+            // Wrong/missing key — fall back to whatever's stored; if it's
+            // unencrypted plaintext (legacy) it'll just show as-is.
+            setSenderWaPlain(a.sender_whatsapp && !a.sender_whatsapp.startsWith('enc:') ? a.sender_whatsapp : '');
+            setSenderSocialPlain(a.sender_social && !a.sender_social.startsWith('enc:') ? a.sender_social : '');
+          }
         }
       }
     })();
@@ -210,6 +237,19 @@ export default function YesPage() {
     if (!id || !ask) return;
     const placeId = selectedPlace === CUSTOM_PLACE_ID ? CUSTOM_PLACE_ID : selectedPlace;
 
+    // Encrypt receiver contact info before writing it to the DB so phone
+    // numbers + handles are never stored in plaintext.
+    let encRecvWa: string | null = null;
+    let encRecvSocial: string | null = null;
+    if (cryptoKey) {
+      encRecvWa     = await encryptText(receiverWhatsapp || null, cryptoKey);
+      encRecvSocial = await encryptText(receiverSocial   || null, cryptoKey);
+    } else {
+      // No key (shouldn't happen for invites created post-fix) — store
+      // null rather than leaking plaintext.
+      encRecvWa = encRecvSocial = null;
+    }
+
     await updateAsk(id, {
       chosen_place:        placeId,
       chosen_place_custom: placeId === CUSTOM_PLACE_ID ? customPlace : null,
@@ -218,9 +258,11 @@ export default function YesPage() {
       outfit_custom:       customOutfit  || null,
       how_we_met:          pickupSpot    || null,
       receiver_message:    receiverMsg   || null,
+      receiver_whatsapp:   encRecvWa,
+      receiver_social:     encRecvSocial,
     });
     setConfirmed(true);
-    setStep(6);
+    setStep(7);
   }
 
   /* ── computed values ─────────────────────────────────────────────── */
@@ -247,7 +289,7 @@ export default function YesPage() {
   if (!ask) return <LoadingHeart message="Getting everything ready…" />;
 
   /* ── STEP 6: Confirmed / share screen ────────────────────────────── */
-  if (confirmed || step === 6) {
+  if (confirmed || step === 7) {
     return (
       <PhoneShell>
         <div className="relative h-full overflow-y-auto no-scrollbar">
@@ -443,7 +485,7 @@ export default function YesPage() {
                   setTimeout(() => setCopied(false), 1600);
                 }}
               >
-                {copied ? '✓ Copied!' : '📋 Copy my answer'}
+                {copied ? '✓ Copied — paste in WhatsApp / Insta / anywhere!' : '📋 Copy my answer'}
               </button>
               {!!navigator.share && (
                 <button
@@ -475,7 +517,7 @@ export default function YesPage() {
 
   /* ── Steps 0 – 5 ─────────────────────────────────────────────────── */
   // Steps: 0=Celebrate  1=Where  2=When  3=Wear  4=How we met  5=Message
-  const isLastStep = step === 5;
+  const isLastStep = step === 6;
 
   return (
     <PhoneShell>
@@ -532,7 +574,7 @@ export default function YesPage() {
         )}
 
         {/* Progress dots (steps 1 – 5) */}
-        {step > 0 && <StepDots step={step - 1} total={5} />}
+        {step > 0 && <StepDots step={step - 1} total={6} />}
 
         {/* Step content — book-page flips, no inner scroll */}
         <div
@@ -854,6 +896,102 @@ export default function YesPage() {
                   />
                   <div className="text-right text-[10px] text-ink-soft -mt-1.5">
                     {receiverMsg.length} / 240
+                  </div>
+                </div>
+              )}
+
+              {/* ── Step 6: How they can reach you ────────────── */}
+              {step === 6 && (
+                <div className="grid gap-3">
+                  <PageTitle chapter="chapter 6 · stay in touch" title="How to reach you?" />
+                  <p className="text-[12px] text-ink-soft -mt-1 italic">
+                    ~ both totally optional — only {ask.sender_name} will see this, never stored unencrypted ~
+                  </p>
+
+                  {/* Sender's contact, shown so receiver knows where to DM */}
+                  {(senderWaPlain || senderSocialPlain) && (
+                    <div
+                      className="rounded-xl px-3 py-2.5 text-[12px]"
+                      style={{ background: '#fff1f7', border: '1px dashed #f9a8d4' }}
+                    >
+                      <div className="text-[10px] font-black text-pink-500 uppercase tracking-wider mb-1">
+                        {ask.sender_name}'s contacts
+                      </div>
+                      {senderWaPlain && (
+                        <div className="flex items-center gap-1.5">
+                          <span>📱</span>
+                          <span className="font-extrabold">{senderWaPlain}</span>
+                        </div>
+                      )}
+                      {senderSocialPlain && (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span>💬</span>
+                          <span className="font-extrabold">{senderSocialPlain}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="label">
+                      Your WhatsApp
+                      <span className="text-ink-soft font-normal normal-case tracking-normal ml-1">(optional)</span>
+                    </label>
+                    <div
+                      className="flex items-center overflow-hidden"
+                      style={{
+                        border: '1.5px solid #fbcfe8',
+                        background: '#fff7fb',
+                        borderRadius: 12,
+                      }}
+                    >
+                      <span
+                        className="flex-none font-extrabold text-pink-600 text-[13px] select-none"
+                        style={{
+                          padding: '12px 10px 12px 14px',
+                          background: 'linear-gradient(135deg,#fff1f7,#fce7f3)',
+                          borderRight: '1.5px solid #fbcfe8',
+                        }}
+                      >
+                        +94
+                      </span>
+                      <input
+                        type="tel"
+                        inputMode="numeric"
+                        value={receiverWhatsapp}
+                        onChange={(e) => setReceiverWhatsapp(e.target.value)}
+                        placeholder="077 123 4567"
+                        style={{
+                          flex: 1, border: 'none', outline: 'none',
+                          background: 'transparent', padding: '12px 14px',
+                          font: 'inherit', color: '#831843',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      Your social handle
+                      <span className="text-ink-soft font-normal normal-case tracking-normal ml-1">(optional)</span>
+                    </label>
+                    <input
+                      className="input"
+                      value={receiverSocial}
+                      onChange={(e) => setReceiverSocial(e.target.value)}
+                      placeholder="e.g. @nethmi_x · Insta"
+                      maxLength={60}
+                    />
+                  </div>
+
+                  <div
+                    className="flex gap-2 items-start rounded-xl p-3 text-[11px] leading-snug text-ink-soft"
+                    style={{ background: 'rgba(255,255,255,.85)', border: '1px solid #fbcfe8' }}
+                  >
+                    <span className="text-base">🔒</span>
+                    <span>
+                      End-to-end encrypted — only {ask.sender_name}'s device can read these. The server only sees scrambled bytes.
+                    </span>
                   </div>
                 </div>
               )}

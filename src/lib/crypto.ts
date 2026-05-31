@@ -29,7 +29,9 @@ export async function exportKeyB64(key: CryptoKey): Promise<string> {
 
 export async function importKeyB64(b64: string): Promise<CryptoKey> {
   const raw = fromB64(b64);
-  return crypto.subtle.importKey('raw', raw.buffer as ArrayBuffer, ALG, false, ['decrypt']);
+  // Allow both encrypt + decrypt so the same key can re-encrypt receiver-side
+  // contact info that gets written back to the same record.
+  return crypto.subtle.importKey('raw', raw.buffer as ArrayBuffer, ALG, false, ['encrypt', 'decrypt']);
 }
 
 /* ---------- photo payload type ---------- */
@@ -130,6 +132,49 @@ export async function decryptPhotoPayload(stored: string, key: CryptoKey): Promi
   // Handle both old format (string[]) and new format ({ s, r })
   if (Array.isArray(parsed)) return { s: parsed as string[], r: [] };
   return parsed as PhotoPayload;
+}
+
+/* ---------- short-string encryption (contact info, etc.) ---------- */
+
+/**
+ * Encrypts a short plaintext string (phone, social handle) with the same
+ * AES-GCM key used for photos. Result format: "enc:<base64(iv+cipher)>".
+ * Returns null for empty input so we don't store useless ciphertext.
+ */
+export async function encryptText(plain: string | null | undefined, key: CryptoKey): Promise<string | null> {
+  if (!plain) return null;
+  const iv = new Uint8Array(new ArrayBuffer(IV_LEN));
+  crypto.getRandomValues(iv);
+  const bytes = new TextEncoder().encode(plain);
+  const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, bytes);
+  const packed = new Uint8Array(new ArrayBuffer(IV_LEN + cipher.byteLength));
+  packed.set(iv, 0);
+  packed.set(new Uint8Array(cipher as ArrayBuffer), IV_LEN);
+  return 'enc:' + toB64(packed);
+}
+
+/**
+ * Decrypts a value produced by encryptText. Returns the original string,
+ * or the input as-is if it isn't encrypted (backwards compat for any
+ * legacy plaintext rows). Returns '' on failure so the UI degrades quietly.
+ */
+export async function decryptText(stored: string | null | undefined, key: CryptoKey): Promise<string> {
+  if (!stored) return '';
+  if (!stored.startsWith('enc:')) return stored;
+  try {
+    const packed = fromB64(stored.slice(4));
+    const iv = new Uint8Array(new ArrayBuffer(IV_LEN));
+    iv.set(packed.subarray(0, IV_LEN));
+    const cipherBytes = packed.subarray(IV_LEN);
+    const cipherBuf = cipherBytes.buffer.slice(
+      cipherBytes.byteOffset,
+      cipherBytes.byteOffset + cipherBytes.byteLength,
+    ) as ArrayBuffer;
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBuf);
+    return new TextDecoder().decode(plain);
+  } catch {
+    return '';
+  }
 }
 
 /* ---------- base64url helpers ---------- */

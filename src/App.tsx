@@ -8,6 +8,7 @@ import DashboardPage from './pages/DashboardPage';
 import MyInvitesPage from './pages/MyInvitesPage';
 import CardLandingPage from './pages/CardLandingPage';
 import CardResponsesPage from './pages/CardResponsesPage';
+import StatsPage from './pages/StatsPage';
 import HeartParticles from './components/HeartParticles';
 
 export default function App() {
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/my-invites" element={<MyInvitesPage />} />
           <Route path="/card/:id" element={<CardLandingPage />} />
           <Route path="/card/:id/responses" element={<CardResponsesPage />} />
+          <Route path="/stats" element={<StatsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>

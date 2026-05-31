@@ -15,8 +15,11 @@ export interface Ask {
   photos: string[];          // ["enc:<blob>"] — PhotoPayload encrypted
   places: string[];          // legacy / unused
   sender_whatsapp?: string | null;
+  sender_social?: string | null;     // e.g. "@kasun_lk · Insta"
   personal_message?: string | null;  // sender's message to receiver
   receiver_message?: string | null;  // receiver's reply message
+  receiver_whatsapp?: string | null; // receiver's optional WhatsApp
+  receiver_social?: string | null;   // receiver's optional handle
   answer?: Answer;
   chosen_place?: string | null;
   chosen_place_custom?: string | null;
