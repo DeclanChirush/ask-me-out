@@ -13,6 +13,8 @@ import { playStep, playConfirm, playPhotoAdd, playClick, playPageFlip } from '..
 import PhoneShell from '../components/PhoneShell';
 import FloatingHearts from '../components/FloatingHearts';
 import CoupleMatch from '../components/CoupleMatch';
+import QRCode from '../components/QRCode';
+import { addMyInvite } from '../lib/myInvites';
 import type { Lang } from '../types';
 
 const STEPS = [
@@ -153,6 +155,15 @@ export default function SetupPage() {
 
       const hash = photoKey ? `#${photoKey}` : '';
       playConfirm();
+      // Remember this invite on this device so the sender can come back
+      // to a "My Invites" dashboard and track every link they create.
+      addMyInvite({
+        id: ask.id,
+        sender_name: draft.sender_name,
+        receiver_name: draft.receiver_name,
+        hash,
+        created_at: ask.created_at || new Date().toISOString(),
+      });
       setDone({ id: ask.id, url: `${window.location.origin}/ask/${ask.id}${hash}` });
     } finally {
       setSubmitting(false);
@@ -181,8 +192,21 @@ export default function SetupPage() {
               </div>
             </div>
 
-            <div className="card mt-4 p-4">
-              <div className="label">Shareable link</div>
+            {/* QR code — let them show it on-screen so the other person
+                can scan it when there's no chat app to share through. */}
+            <div className="card mt-4 p-4 text-center">
+              <div className="washi" style={{ fontSize: 12 }}>~ scan with their phone ~</div>
+              <div className="flex justify-center mt-3">
+                <QRCode value={done.url} size={172} />
+              </div>
+              <p className="text-[11px] text-ink-soft mt-2 leading-relaxed">
+                Hand them your phone or let them point their camera at this code.
+              </p>
+            </div>
+
+            {/* Copyable link — the fallback for when chat IS available */}
+            <div className="card mt-3 p-4">
+              <div className="label">Or copy the link</div>
               <div
                 className="flex items-center gap-2 rounded-xl px-3 py-2.5 font-mono text-[12px]"
                 style={{ background: '#fff7fb', border: '1.5px solid #fbcfe8', color: '#831843' }}
@@ -217,6 +241,14 @@ export default function SetupPage() {
               onClick={() => navigate(`/dashboard/${done.id}`)}
             >
               📊 Open live dashboard
+            </button>
+
+            <button
+              className="btn btn-ghost btn-block mt-2"
+              onClick={() => navigate('/my-invites')}
+              style={{ fontSize: 13 }}
+            >
+              💌 See all my invites
             </button>
 
             <p className="text-center text-xs text-ink-soft mt-4">

@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PhoneShell from '../components/PhoneShell';
 import FloatingHearts from '../components/FloatingHearts';
 import { playClick } from '../lib/sounds';
+import { listMyInvites } from '../lib/myInvites';
 
 /**
  * Landing / welcome page — mobile-first, very pink, very cute.
@@ -11,6 +13,8 @@ import { playClick } from '../lib/sounds';
  */
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [inviteCount, setInviteCount] = useState(0);
+  useEffect(() => { setInviteCount(listMyInvites().length); }, []);
 
   return (
     <PhoneShell>
@@ -193,6 +197,27 @@ export default function LandingPage() {
             Start your love story 💌
           </motion.button>
 
+          {/* "My invites" — only shows once they've created at least one */}
+          {inviteCount > 0 && (
+            <motion.button
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 1.55 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => { playClick(); navigate('/my-invites'); }}
+              className="btn btn-ghost btn-block mt-2.5"
+              style={{ fontSize: 14 }}
+            >
+              💌 See my invites
+              <span
+                className="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold"
+                style={{ background: '#fce7f3', color: '#be185d' }}
+              >
+                {inviteCount}
+              </span>
+            </motion.button>
+          )}
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -215,6 +240,9 @@ export default function LandingPage() {
           </div>
           <div className="text-[10px] uppercase tracking-[.25em] text-ink-soft font-extrabold mt-1">
             for the brave hearts of Sri Lanka
+          </div>
+          <div className="text-[11px] text-ink-soft mt-2 font-bold">
+            by <span className="script text-pink-600" style={{ fontSize: 18 }}>Hirush Gimhan</span>
           </div>
         </motion.div>
 

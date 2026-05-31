@@ -5,6 +5,7 @@ import SetupPage from './pages/SetupPage';
 import ReceiverPage from './pages/ReceiverPage';
 import YesPage from './pages/YesPage';
 import DashboardPage from './pages/DashboardPage';
+import MyInvitesPage from './pages/MyInvitesPage';
 import HeartParticles from './components/HeartParticles';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/ask/:id" element={<ReceiverPage />} />
           <Route path="/yes/:id" element={<YesPage />} />
           <Route path="/dashboard/:id" element={<DashboardPage />} />
+          <Route path="/my-invites" element={<MyInvitesPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AnimatePresence>
