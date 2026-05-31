@@ -125,6 +125,21 @@ export default function MyInvitesPage() {
     setCards((cs) => cs.filter((c) => c.id !== id));
   };
 
+  /** Wipe every AskOut localStorage key on this device — invites, cards,
+   *  scanned-card markers, admin-unlock flag. Doesn't touch the DB. */
+  const handleResetAll = () => {
+    const total = rows.length + cards.length;
+    const confirmMsg = total > 0
+      ? `Forget all ${total} ${total === 1 ? 'invite' : 'invites'} from this device?\n\n• Links still work for anyone who already has them\n• Server data is untouched\n• You won't be able to track replies that come in after this`
+      : 'Reset all AskOut data on this device?';
+    if (!confirm(confirmMsg)) return;
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith('askout:'))
+      .forEach((k) => localStorage.removeItem(k));
+    setRows([]);
+    setCards([]);
+  };
+
   return (
     <PhoneShell>
       <div className="h-full flex flex-col overflow-hidden">
@@ -333,6 +348,17 @@ export default function MyInvitesPage() {
 
               <p className="text-center text-[10px] text-ink-soft mt-3 leading-relaxed px-4">
                 This list lives only on this device — nobody else can see it. 🔒
+              </p>
+
+              <button
+                onClick={handleResetAll}
+                className="btn btn-ghost btn-block mt-4"
+                style={{ fontSize: 12, color: '#9ca3af', border: '1px dashed #e5e7eb' }}
+              >
+                🗑️ Reset my data on this device
+              </button>
+              <p className="text-center text-[10px] text-ink-soft mt-1.5 leading-snug px-4">
+                Clears every saved invite & card from this phone. Doesn't touch the server.
               </p>
             </>
           )}
