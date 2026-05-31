@@ -82,3 +82,38 @@ export function playConfirm() {
     [523.25, 659.25, 783.99].forEach((f, i) => tone(f, i * 0.08, 0.32, 0.19));
   } catch { /* silently ignore */ }
 }
+
+/**
+ * Soft paper page-flip — quick whoosh + flick.
+ * Layered over playStep so the wizard still feels cute,
+ * but adds a tactile book-page feel.
+ */
+export function playPageFlip() {
+  try {
+    const c = getCtx();
+    // 1) Short noise burst (the "whoosh")
+    const buf = c.createBuffer(1, c.sampleRate * 0.18, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      // White noise that fades out, with a soft attack envelope
+      const t = i / data.length;
+      const env = Math.sin(Math.PI * t) * (1 - t);
+      data[i] = (Math.random() * 2 - 1) * env * 0.35;
+    }
+    const noise = c.createBufferSource();
+    noise.buffer = buf;
+    // Band-pass to make it sound like paper rather than static
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2200;
+    bp.Q.value = 0.9;
+    const ng = c.createGain();
+    ng.gain.value = 0.22;
+    noise.connect(bp); bp.connect(ng); ng.connect(c.destination);
+    noise.start();
+    noise.stop(c.currentTime + 0.22);
+
+    // 2) High-pitched "flick" tap at the end of the flip
+    tone(2400, 0.12, 0.05, 0.08, 'triangle');
+  } catch { /* silently ignore */ }
+}

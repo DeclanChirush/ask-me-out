@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAsk, updateAsk } from '../lib/supabase';
-import { playStep, playConfirm, playClick } from '../lib/sounds';
+import { playStep, playConfirm, playClick, playPageFlip } from '../lib/sounds';
 import { PLACES, OUTFIT_COLORS, PICKUP_OPTIONS } from '../store/useAskStore';
 import type { Ask } from '../types';
 import PhoneShell from '../components/PhoneShell';
@@ -73,6 +73,23 @@ function getQuickDates() {
   });
 }
 
+/* Book-page flip animation — pages turn around their vertical axis,
+   like the spine of a real book. `dir` is +1 for "forward" (turning a
+   page rightward off the stack) and -1 for "back". */
+const pageVariants = {
+  enter: (dir: number) => ({
+    rotateY: dir > 0 ? 75 : -75,
+    x: dir > 0 ? 40 : -40,
+    opacity: 0,
+  }),
+  center: { rotateY: 0, x: 0, opacity: 1 },
+  exit: (dir: number) => ({
+    rotateY: dir > 0 ? -75 : 75,
+    x: dir > 0 ? -40 : 40,
+    opacity: 0,
+  }),
+};
+
 /* ─── sub-components ────────────────────────────────────────────────── */
 function StepDots({ step, total }: { step: number; total: number }) {
   return (
@@ -93,8 +110,17 @@ export default function YesPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [ask, setAsk]   = useState<Ask | null>(null);
-  const [step, setStep] = useState(0);
+  const [ask, setAsk]    = useState<Ask | null>(null);
+  const [step, setStep]  = useState(0);
+  /** +1 = turning page forward, -1 = flipping back. Drives book animation. */
+  const [direction, setDirection] = useState(1);
+
+  /** Page-flip + step ding, plus state change. */
+  const goToStep = (next: number) => {
+    setDirection(next > step ? 1 : -1);
+    playPageFlip();
+    setStep(next);
+  };
 
   /* receiver's choices */
   const [selectedPlace, setSelectedPlace] = useState('');
@@ -382,11 +408,11 @@ export default function YesPage() {
 
   return (
     <PhoneShell>
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-hidden">
 
-        {/* Celebration header — always visible */}
-        <div className="relative pt-6 pb-2">
-          <FloatingHearts count={step === 0 ? 18 : 8} />
+        {/* Celebration header — compact on planning pages, full on cover */}
+        <div className={`relative ${step === 0 ? 'pt-5 pb-2' : 'pt-3 pb-1'}`}>
+          <FloatingHearts count={step === 0 ? 16 : 5} />
           {step === 0 && <ConfettiCanvas fire />}
 
           <div className="text-center relative">
@@ -395,7 +421,7 @@ export default function YesPage() {
               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
               className="font-black leading-none"
               style={{
-                fontSize: step === 0 ? 72 : 40,
+                fontSize: step === 0 ? 68 : 24,
                 background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #be185d 100%)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
@@ -421,20 +447,27 @@ export default function YesPage() {
         {/* Progress dots (steps 1 – 5) */}
         {step > 0 && <StepDots step={step - 1} total={5} />}
 
-        {/* Step content */}
-        <div className="flex-1 overflow-y-auto no-scrollbar px-5 pb-32 pt-3">
-          <AnimatePresence mode="wait">
+        {/* Step content — book-page flips, no inner scroll */}
+        <div
+          className="flex-1 px-5 pt-2 pb-3 relative"
+          style={{ perspective: 1200 }}
+        >
+          <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, x: 24 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -24 }}
-              transition={{ duration: 0.3 }}
+              custom={direction}
+              variants={pageVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
+              style={{ transformOrigin: direction > 0 ? 'left center' : 'right center', transformStyle: 'preserve-3d' }}
+              className="h-full"
             >
 
-              {/* ── Step 0: Celebration ─────────────────────────── */}
+              {/* ── Step 0: Cover page ──────────────────────────── */}
               {step === 0 && (
-                <div className="grid gap-4 mt-2">
+                <div className="grid gap-3 mt-2 h-full content-center">
                   {ask.personal_message && (
                     <div
                       className="rounded-2xl px-4 py-3 italic text-[13px] text-ink-soft relative"
@@ -447,17 +480,23 @@ export default function YesPage() {
                       {ask.personal_message}
                     </div>
                   )}
-                  <button className="btn btn-primary btn-block" onClick={() => setStep(1)}>
-                    Let's plan it 🗓️
+                  {/* Book-cover spine — gives the "open the book" feel */}
+                  <div
+                    className="text-center text-[11px] uppercase tracking-[.25em] font-extrabold text-pink-500 py-1"
+                  >
+                    · Our date book ·
+                  </div>
+                  <button className="btn btn-primary btn-block" onClick={() => goToStep(1)}>
+                    Open the book 📖
                   </button>
                 </div>
               )}
 
               {/* ── Step 1: Where? ──────────────────────────────── */}
               {step === 1 && (
-                <div className="grid gap-3">
-                  <div className="text-xl font-black">Where do you want to go?</div>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="grid gap-2">
+                  <div className="text-base font-black">Where do you want to go?</div>
+                  <div className="grid grid-cols-2 gap-1.5">
                     {PLACES.map((p) => (
                       <PlaceCard
                         key={p.id}
@@ -475,18 +514,18 @@ export default function YesPage() {
                       style={{
                         border: '1.5px solid ' + (selectedPlace === CUSTOM_PLACE_ID ? '#ec4899' : '#fbcfe8'),
                         background: selectedPlace === CUSTOM_PLACE_ID ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
-                        padding: '12px 10px',
-                        display: 'flex', gap: 10, alignItems: 'center',
+                        padding: '10px 10px',
+                        display: 'flex', gap: 8, alignItems: 'center',
                         boxShadow: selectedPlace === CUSTOM_PLACE_ID ? '0 8px 18px -10px rgba(236,72,153,.45)' : 'none',
                       }}
                     >
-                      <div className="text-2xl">✏️</div>
+                      <div className="text-xl">✏️</div>
                       <div>
-                        <div className="font-extrabold text-sm text-ink">Somewhere else</div>
-                        <div className="text-[11px] text-ink-soft">Type it in</div>
+                        <div className="font-extrabold text-[13px] text-ink leading-tight">Somewhere else</div>
+                        <div className="text-[10px] text-ink-soft">Type it in</div>
                       </div>
                       {selectedPlace === CUSTOM_PLACE_ID && (
-                        <div className="absolute top-2 right-2 w-[18px] h-[18px] rounded-full bg-pink-500 text-white grid place-items-center text-[10px] font-black">✓</div>
+                        <div className="absolute top-1.5 right-1.5 w-[16px] h-[16px] rounded-full bg-pink-500 text-white grid place-items-center text-[9px] font-black">✓</div>
                       )}
                     </button>
                   </div>
@@ -504,27 +543,26 @@ export default function YesPage() {
 
               {/* ── Step 2: When? ───────────────────────────────── */}
               {step === 2 && (
-                <div className="grid gap-3">
-                  <div className="text-xl font-black">When do you want to go?</div>
+                <div className="grid gap-2">
+                  <div className="text-base font-black">When do you want to go?</div>
 
                   {/* Quick-pick day chips — no empty field, no iOS scroll wheel surprise */}
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-3 gap-1.5">
                     {getQuickDates().map(({ label, sub, value }) => {
                       const active = selectedDate === value && !showDateInput;
                       return (
                         <button
                           key={value}
                           onClick={() => { setSelectedDate(active ? '' : value); setShowDateInput(false); }}
-                          className="rounded-2xl py-3 px-2 flex flex-col items-center gap-0.5 transition-all"
+                          className="rounded-xl py-2 px-1 flex flex-col items-center gap-0 transition-all"
                           style={{
                             border: active ? '2px solid #ec4899' : '1.5px solid #fbcfe8',
                             background: active ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
                             boxShadow: active ? '0 6px 16px -8px rgba(236,72,153,.45)' : 'none',
                           }}
                         >
-                          <span className="font-extrabold text-[13px] text-ink leading-none">{label}</span>
-                          <span className="text-[10px] text-ink-soft mt-0.5">{sub}</span>
-                          {active && <span className="text-[9px] text-pink-500 font-black mt-0.5">✓</span>}
+                          <span className="font-extrabold text-[12px] text-ink leading-tight">{label}</span>
+                          <span className="text-[9px] text-ink-soft">{sub}</span>
                         </button>
                       );
                     })}
@@ -535,22 +573,21 @@ export default function YesPage() {
                     onClick={() => {
                       setShowDateInput(true);
                       setSelectedDate('');
-                      // Give DOM time to render, then open the native picker
                       setTimeout(() => {
                         dateInputRef.current?.focus();
                         dateInputRef.current?.showPicker?.();
                       }, 60);
                     }}
-                    className="rounded-2xl py-3 px-4 flex items-center gap-3 transition-all text-left w-full"
+                    className="rounded-xl py-2 px-3 flex items-center gap-2 transition-all text-left w-full"
                     style={{
                       border: showDateInput ? '2px solid #ec4899' : '1.5px solid #fbcfe8',
                       background: showDateInput ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
                     }}
                   >
-                    <span className="text-xl">📅</span>
-                    <div>
-                      <div className="font-extrabold text-[13px] text-ink">Different day…</div>
-                      <div className="text-[11px] text-ink-soft">
+                    <span className="text-base">📅</span>
+                    <div className="leading-tight">
+                      <div className="font-extrabold text-[12px] text-ink">Different day…</div>
+                      <div className="text-[10px] text-ink-soft">
                         {showDateInput && selectedDate ? fmtDate(selectedDate) : 'Pick from calendar'}
                       </div>
                     </div>
@@ -571,25 +608,14 @@ export default function YesPage() {
                     />
                   )}
 
-                  {/* Confirmation banner */}
-                  {selectedDate && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-center font-extrabold text-pink-600 text-[14px] py-1"
-                    >
-                      {fmtDate(selectedDate)} 🗓️
-                    </motion.div>
-                  )}
-
                   {/* Time chips */}
-                  <div className="label -mb-1">Pick a time</div>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="label -mb-0.5 mt-0.5">Pick a time</div>
+                  <div className="grid grid-cols-3 gap-1.5">
                     {TIME_CHIPS.map((t) => (
                       <button
                         key={t}
                         onClick={() => setSelectedTime(selectedTime === t ? '' : t)}
-                        className="rounded-xl py-2 font-extrabold text-[11px] transition-all"
+                        className="rounded-lg py-1.5 font-extrabold text-[11px] transition-all"
                         style={{
                           border: '1.5px solid ' + (selectedTime === t ? '#ec4899' : '#fbcfe8'),
                           background: selectedTime === t ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
@@ -605,24 +631,25 @@ export default function YesPage() {
 
               {/* ── Step 3: Outfit ──────────────────────────────── */}
               {step === 3 && (
-                <div className="grid gap-4">
-                  <div className="text-xl font-black">What will you wear? 👗</div>
-                  <div className="grid grid-cols-4 gap-2">
+                <div className="grid gap-2">
+                  <div className="text-base font-black">What will you wear? 👗</div>
+                  <div className="grid grid-cols-6 gap-1.5">
                     {OUTFIT_COLORS.map((c) => {
                       const active = selectedColor === c.id;
                       return (
                         <button
                           key={c.id}
                           onClick={() => setSelectedColor(active ? '' : c.id)}
-                          className="flex flex-col items-center gap-1.5 rounded-2xl py-3 transition-all"
+                          className="flex flex-col items-center gap-1 rounded-xl py-1.5 transition-all"
                           style={{
                             border: active ? '2px solid #ec4899' : '1.5px solid #fbcfe8',
                             background: active ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
                             boxShadow: active ? '0 6px 16px -8px rgba(236,72,153,.45)' : 'none',
                           }}
+                          title={c.label}
                         >
                           <div
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black"
+                            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-black"
                             style={{
                               background: c.hex,
                               border: c.id === 'white' ? '1.5px solid #fbcfe8' : 'none',
@@ -631,14 +658,14 @@ export default function YesPage() {
                           >
                             {active && '✓'}
                           </div>
-                          <span className="text-[9px] font-extrabold text-ink uppercase tracking-wide">
+                          <span className="text-[8px] font-extrabold text-ink uppercase tracking-wide leading-none">
                             {c.label}
                           </span>
                         </button>
                       );
                     })}
                   </div>
-                  <div>
+                  <div className="mt-1">
                     <label className="label">Or describe it</label>
                     <input
                       className="input"
@@ -652,39 +679,39 @@ export default function YesPage() {
 
               {/* ── Step 4: Where to pick you up? ───────────────── */}
               {step === 4 && (
-                <div className="grid gap-3">
+                <div className="grid gap-2">
                   <div>
-                    <div className="text-xl font-black">Where should I pick you up? 🚗</div>
-                    <div className="text-[13px] text-ink-soft mt-0.5">
+                    <div className="text-base font-black">Where should I pick you up? 🚗</div>
+                    <div className="text-[11px] text-ink-soft mt-0.5">
                       Totally optional — skip if you'll meet at the venue 😊
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-1.5">
                     {PICKUP_OPTIONS.map((o) => {
                       const isActive = pickupSpot === o.label;
                       return (
                         <button
                           key={o.id}
                           onClick={() => setPickupSpot(isActive ? '' : o.label)}
-                          className="relative rounded-2xl text-left transition-all"
+                          className="relative rounded-xl text-left transition-all"
                           style={{
                             border: '1.5px solid ' + (isActive ? '#ec4899' : '#fbcfe8'),
                             background: isActive ? 'linear-gradient(135deg,#fff1f7,#fce7f3)' : 'white',
-                            padding: '12px 10px',
+                            padding: '9px 10px',
                             display: 'flex', gap: 8, alignItems: 'center',
                             boxShadow: isActive ? '0 8px 18px -10px rgba(236,72,153,.45)' : 'none',
                           }}
                         >
-                          <span className="text-xl">{o.emoji}</span>
-                          <span className="font-extrabold text-[12px] text-ink leading-tight">{o.label}</span>
+                          <span className="text-base">{o.emoji}</span>
+                          <span className="font-extrabold text-[11.5px] text-ink leading-tight">{o.label}</span>
                           {isActive && (
                             <div
                               style={{
-                                position: 'absolute', top: 7, right: 7,
-                                width: 16, height: 16, borderRadius: '50%',
+                                position: 'absolute', top: 5, right: 5,
+                                width: 14, height: 14, borderRadius: '50%',
                                 background: '#ec4899', color: 'white',
                                 display: 'grid', placeItems: 'center',
-                                fontSize: 9, fontWeight: 900,
+                                fontSize: 8, fontWeight: 900,
                               }}
                             >✓</div>
                           )}
@@ -693,7 +720,7 @@ export default function YesPage() {
                     })}
                   </div>
                   {/* Free-text override — chips just pre-fill this input */}
-                  <div>
+                  <div className="mt-1">
                     <label className="label">Or type a specific place</label>
                     <input
                       className="input"
@@ -707,32 +734,32 @@ export default function YesPage() {
 
               {/* ── Step 5: Message ─────────────────────────────── */}
               {step === 5 && (
-                <div className="grid gap-4">
-                  <div className="text-xl font-black">Say something back 💌</div>
+                <div className="grid gap-2">
+                  <div className="text-base font-black">Say something back 💌</div>
 
                   {/* Sender's message for reference */}
                   {ask.personal_message && (
                     <div
-                      className="rounded-2xl px-4 py-3 italic text-[13px] text-ink-soft relative"
+                      className="rounded-xl px-3 py-2 italic text-[12px] text-ink-soft relative"
                       style={{ background: 'rgba(255,255,255,.85)', border: '1px solid #fbcfe8' }}
                     >
-                      <div className="text-[10px] font-black text-pink-500 uppercase tracking-wider mb-1 not-italic">
+                      <div className="text-[9px] font-black text-pink-500 uppercase tracking-wider mb-0.5 not-italic">
                         {ask.sender_name} said
                       </div>
-                      <div className="absolute -top-2 left-3 text-2xl text-pink-300 leading-none">"</div>
+                      <div className="absolute -top-2 left-3 text-xl text-pink-300 leading-none">"</div>
                       {ask.personal_message}
                     </div>
                   )}
 
                   <textarea
                     className="textarea"
-                    rows={4}
+                    rows={3}
                     maxLength={240}
                     placeholder={`Say something to ${ask.sender_name}… optional`}
                     value={receiverMsg}
                     onChange={(e) => setReceiverMsg(e.target.value)}
                   />
-                  <div className="text-right text-[11px] text-ink-soft -mt-2">
+                  <div className="text-right text-[10px] text-ink-soft -mt-1.5">
                     {receiverMsg.length} / 240
                   </div>
                 </div>
@@ -742,29 +769,29 @@ export default function YesPage() {
           </AnimatePresence>
         </div>
 
-        {/* Bottom CTA */}
+        {/* Bottom CTA — compact, side-by-side */}
         {step > 0 && (
           <div
-            className="absolute left-0 right-0 bottom-0 px-5 py-4 pt-7"
-            style={{ background: 'linear-gradient(180deg, transparent, #fff7fb 28%)' }}
+            className="px-5 pb-3 pt-2 flex gap-2 flex-none"
+            style={{ background: 'linear-gradient(180deg, transparent, #fff7fb 40%)' }}
           >
             <button
-              className="btn btn-primary btn-block"
+              className="btn btn-ghost flex-none"
+              style={{ padding: '12px 16px', minWidth: 80 }}
+              onClick={() => { playClick(); goToStep(Math.max(0, step - 1)); }}
+            >
+              ‹ Back
+            </button>
+            <button
+              className="btn btn-primary flex-1"
               onClick={() => {
                 if (isLastStep) { playConfirm(); confirm(); }
-                else { playStep(); setStep(step + 1); }
+                else { playStep(); goToStep(step + 1); }
               }}
               disabled={!canGoNext}
               style={{ opacity: canGoNext ? 1 : 0.5, cursor: canGoNext ? 'pointer' : 'not-allowed' }}
             >
               {isLastStep ? 'Confirm my answer 💕' : 'Continue →'}
-            </button>
-            <button
-              className="btn btn-ghost btn-block mt-2"
-              style={{ padding: '10px' }}
-              onClick={() => { playClick(); setStep(Math.max(0, step - 1)); }}
-            >
-              ‹ Back
             </button>
           </div>
         )}
