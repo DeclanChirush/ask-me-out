@@ -13,14 +13,29 @@ export default function PhoneShell({ children }: Props) {
       className="min-h-[100dvh] w-full flex items-center justify-center py-4 px-4"
     >
       <div
-        className="w-full max-w-[420px] bg-cream rounded-[36px] relative overflow-hidden"
+        className="paper w-full max-w-[420px] rounded-[28px] relative overflow-hidden"
         style={{
           height: 'min(760px, calc(100dvh - 2rem))',
-          boxShadow: '0 30px 60px -20px rgba(190, 24, 93, 0.45), 0 10px 30px -10px rgba(190, 24, 93, 0.35)',
-          border: '1px solid #fbcfe8',
+          boxShadow:
+            '0 30px 60px -20px rgba(190, 24, 93, 0.45),' +
+            '0 10px 30px -10px rgba(190, 24, 93, 0.35),' +
+            'inset 18px 0 30px -22px rgba(190, 24, 93, 0.30)', // soft inner spine shadow
+          border: '1px solid #f9a8d4',
         }}
       >
-        {children}
+        {/* Stitched spine running down the left edge */}
+        <div className="book-spine" />
+
+        {/* Ribbon bookmark on the top-right */}
+        <div className="bookmark" />
+
+        {/* Folded-page corner at bottom-right */}
+        <div className="page-curl" />
+
+        {/* The actual page content — push it past the spine */}
+        <div className="relative h-full pl-[18px]">
+          {children}
+        </div>
       </div>
     </motion.div>
   );

@@ -86,6 +86,104 @@ body {
 .no-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
 .no-scrollbar { scrollbar-width: none; }
 
+/* ─── Book / diary aesthetic ─────────────────────────────────── */
+
+/* Warm aged-cream paper with a subtle pink dot grid (Moleskine-y) */
+.paper {
+  background-color: #fffaf2;
+  background-image:
+    radial-gradient(circle, rgba(244, 114, 182, 0.16) 0.9px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 247, 240, 1) 0%, rgba(255, 240, 247, 1) 100%);
+  background-size: 18px 18px, 100% 100%;
+  background-position: 0 0, 0 0;
+}
+
+/* Vertical stitched book spine, sits on the left edge of the page */
+.book-spine {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 22px;
+  pointer-events: none;
+  background: linear-gradient(90deg,
+    rgba(190, 24, 93, 0.22) 0%,
+    rgba(244, 114, 182, 0.12) 40%,
+    transparent 100%);
+  border-right: 1px dashed rgba(236, 72, 153, 0.45);
+}
+/* Stitch dots running down the spine */
+.book-spine::after {
+  content: '';
+  position: absolute;
+  left: 21px; top: 18px; bottom: 18px;
+  width: 2px;
+  background-image: radial-gradient(circle, #ec4899 1px, transparent 1.2px);
+  background-size: 2px 12px;
+  background-repeat: repeat-y;
+  opacity: 0.7;
+}
+
+/* Pink ribbon bookmark hanging from the top */
+.bookmark {
+  position: absolute;
+  top: -2px; right: 28px;
+  width: 18px; height: 62px;
+  background: linear-gradient(180deg, #ec4899, #be185d);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%);
+  filter: drop-shadow(0 3px 4px rgba(190, 24, 93, 0.45));
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Folded page corner — subtle triangle at bottom-right */
+.page-curl {
+  position: absolute;
+  right: 0; bottom: 0;
+  width: 38px; height: 38px;
+  pointer-events: none;
+  background: linear-gradient(135deg, transparent 50%, #fce7f3 50%, #fbcfe8 100%);
+  box-shadow: -2px -2px 4px -2px rgba(190, 24, 93, 0.25) inset;
+  border-bottom-right-radius: 28px;
+}
+
+/* Washi-tape strip — for decorating the top of a "page" */
+.washi {
+  display: inline-block;
+  padding: 3px 14px;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(244, 114, 182, 0.55) 0,
+    rgba(244, 114, 182, 0.55) 6px,
+    rgba(252, 207, 232, 0.7) 6px,
+    rgba(252, 207, 232, 0.7) 12px
+  );
+  transform: rotate(-2deg);
+  border-radius: 2px;
+  font-family: 'Caveat', cursive;
+  color: #831843;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(190, 24, 93, 0.15);
+}
+
+/* Hand-drawn underline used under handwritten titles */
+.ink-underline {
+  display: block;
+  height: 8px;
+  width: 100%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'><path d='M2 5 Q 30 -2, 60 4 T 118 4' stroke='%23ec4899' stroke-width='2.2' stroke-linecap='round' fill='none'/></svg>");
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
+
+/* "Page X of Y" footer */
+.page-number {
+  font-family: 'Caveat', cursive;
+  font-size: 14px;
+  color: #be185d;
+  opacity: 0.7;
+  letter-spacing: 0.03em;
+}
+
 /* Emoji rain animation — triggered when a place card is selected */
 @keyframes emojiDrop {
   0%   { transform: translateY(-10px) rotate(-15deg); opacity: 1; }

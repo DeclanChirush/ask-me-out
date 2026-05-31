@@ -90,6 +90,46 @@ const pageVariants = {
   }),
 };
 
+/* Handwritten "diary page" heading — Caveat font with hand-drawn underline. */
+function PageTitle({
+  chapter,
+  title,
+  size = 30,
+}: { chapter: string; title: string; size?: number }) {
+  return (
+    <div className="mb-1">
+      <div className="washi">{chapter}</div>
+      <h2
+        className="script text-pink-600 leading-tight mt-1.5"
+        style={{ fontSize: size, color: '#be185d' }}
+      >
+        {title}
+      </h2>
+      <span className="ink-underline" style={{ width: 110, marginTop: 2 }} />
+    </div>
+  );
+}
+
+/* Doodled hearts scattered in the page margins. */
+function DoodleHearts() {
+  return (
+    <>
+      <span
+        className="absolute select-none pointer-events-none text-pink-300"
+        style={{ top: 4, right: 8, fontSize: 16, opacity: 0.55, transform: 'rotate(12deg)' }}
+      >
+        ♡
+      </span>
+      <span
+        className="absolute select-none pointer-events-none text-pink-300"
+        style={{ bottom: 30, right: 16, fontSize: 12, opacity: 0.4, transform: 'rotate(-18deg)' }}
+      >
+        ♡
+      </span>
+    </>
+  );
+}
+
 /* ─── sub-components ────────────────────────────────────────────────── */
 function StepDots({ step, total }: { step: number; total: number }) {
   return (
@@ -212,12 +252,7 @@ export default function YesPage() {
           <ConfettiCanvas fire repeatMs={6000} />
 
           <div className="text-center px-6 pt-8 relative">
-            <span
-              className="inline-block uppercase tracking-widest text-[11px] font-black px-3 py-1 rounded-full text-white"
-              style={{ background: 'linear-gradient(135deg,#ec4899,#f472b6)' }}
-            >
-              It's official 💕
-            </span>
+            <span className="washi">~ chapter final ~</span>
 
             <motion.div
               initial={{ opacity: 0, scale: 0.5 }}
@@ -254,7 +289,12 @@ export default function YesPage() {
                 className="absolute -top-6 -right-6 w-24 h-24 rounded-full"
                 style={{ background: 'radial-gradient(circle, rgba(236,72,153,.15), transparent 70%)' }}
               />
-              <div className="label mb-3">Your plan 💕</div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="script text-pink-600 leading-none" style={{ fontSize: 26 }}>
+                  our plan 💕
+                </h3>
+                <span className="page-number">~ the end ~</span>
+              </div>
 
               {/* Place */}
               {placeLabel && (
@@ -314,7 +354,9 @@ export default function YesPage() {
           {/* Message exchange */}
           {(ask.personal_message || receiverMsg) && (
             <div className="px-5 pt-3">
-              <div className="label mb-2">Sweet notes 💌</div>
+              <h3 className="script text-pink-600 leading-none mb-2" style={{ fontSize: 22 }}>
+                sweet notes 💌
+              </h3>
               {ask.personal_message && (
                 <div
                   className="rounded-2xl px-4 py-3 text-[13px] italic text-ink-soft mb-2 relative"
@@ -410,39 +452,55 @@ export default function YesPage() {
     <PhoneShell>
       <div className="h-full flex flex-col overflow-hidden">
 
-        {/* Celebration header — compact on planning pages, full on cover */}
-        <div className={`relative ${step === 0 ? 'pt-5 pb-2' : 'pt-3 pb-1'}`}>
-          <FloatingHearts count={step === 0 ? 16 : 5} />
-          {step === 0 && <ConfettiCanvas fire />}
-
-          <div className="text-center relative">
-            <motion.div
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-              className="font-black leading-none"
-              style={{
-                fontSize: step === 0 ? 68 : 24,
-                background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #be185d 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                letterSpacing: '-.04em',
-                transition: 'font-size .4s ease',
-              }}
-            >
-              YES!
-            </motion.div>
-            {step === 0 && (
+        {/* Header — compact "YES" stamp on planning pages, full cover on step 0 */}
+        {step === 0 ? (
+          <div className="relative pt-6 pb-2">
+            <FloatingHearts count={14} />
+            <ConfettiCanvas fire />
+            <div className="text-center relative px-6">
+              <div className="text-[10px] uppercase tracking-[.4em] font-extrabold text-pink-500 mb-2">
+                · a love story ·
+              </div>
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                className="script leading-none"
+                style={{
+                  fontSize: 76,
+                  background: 'linear-gradient(135deg, #ec4899 0%, #f472b6 50%, #be185d 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  transform: 'rotate(-2deg)',
+                  filter: 'drop-shadow(0 4px 12px rgba(236,72,153,.35))',
+                }}
+              >
+                YES!
+              </motion.div>
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="text-ink-soft font-bold text-sm mt-1"
+                className="text-ink-soft font-bold text-sm mt-2 italic"
               >
-                It's official! Now let's plan it ✨
+                ~ now let's write our plan ~
               </motion.div>
-            )}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="relative pt-3 pb-1 px-5">
+            <FloatingHearts count={4} />
+            <div className="flex items-center justify-between">
+              <div
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-widest text-pink-600"
+                style={{ background: 'rgba(255,255,255,.85)', border: '1px solid #fbcfe8' }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-pink-500 animate-pulse" />
+                YES · {ask.sender_name}
+              </div>
+              <div className="page-number">page {step} of 5</div>
+            </div>
+          </div>
+        )}
 
         {/* Progress dots (steps 1 – 5) */}
         {step > 0 && <StepDots step={step - 1} total={5} />}
@@ -462,8 +520,9 @@ export default function YesPage() {
               exit="exit"
               transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
               style={{ transformOrigin: direction > 0 ? 'left center' : 'right center', transformStyle: 'preserve-3d' }}
-              className="h-full"
+              className="h-full relative"
             >
+              {step > 0 && <DoodleHearts />}
 
               {/* ── Step 0: Cover page ──────────────────────────── */}
               {step === 0 && (
@@ -495,7 +554,7 @@ export default function YesPage() {
               {/* ── Step 1: Where? ──────────────────────────────── */}
               {step === 1 && (
                 <div className="grid gap-2">
-                  <div className="text-base font-black">Where do you want to go?</div>
+                  <PageTitle chapter="chapter 1 · the place" title="Where shall we go?" />
                   <div className="grid grid-cols-2 gap-1.5">
                     {PLACES.map((p) => (
                       <PlaceCard
@@ -544,7 +603,7 @@ export default function YesPage() {
               {/* ── Step 2: When? ───────────────────────────────── */}
               {step === 2 && (
                 <div className="grid gap-2">
-                  <div className="text-base font-black">When do you want to go?</div>
+                  <PageTitle chapter="chapter 2 · the day" title="When shall we meet?" />
 
                   {/* Quick-pick day chips — no empty field, no iOS scroll wheel surprise */}
                   <div className="grid grid-cols-3 gap-1.5">
@@ -632,7 +691,7 @@ export default function YesPage() {
               {/* ── Step 3: Outfit ──────────────────────────────── */}
               {step === 3 && (
                 <div className="grid gap-2">
-                  <div className="text-base font-black">What will you wear? 👗</div>
+                  <PageTitle chapter="chapter 3 · the outfit" title="What will you wear?" />
                   <div className="grid grid-cols-6 gap-1.5">
                     {OUTFIT_COLORS.map((c) => {
                       const active = selectedColor === c.id;
@@ -681,9 +740,9 @@ export default function YesPage() {
               {step === 4 && (
                 <div className="grid gap-2">
                   <div>
-                    <div className="text-base font-black">Where should I pick you up? 🚗</div>
-                    <div className="text-[11px] text-ink-soft mt-0.5">
-                      Totally optional — skip if you'll meet at the venue 😊
+                    <PageTitle chapter="chapter 4 · the rendezvous" title="Where shall I pick you up?" />
+                    <div className="text-[11px] text-ink-soft mt-1 italic">
+                      ✎ totally optional — skip if you'll meet at the venue
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-1.5">
@@ -735,7 +794,7 @@ export default function YesPage() {
               {/* ── Step 5: Message ─────────────────────────────── */}
               {step === 5 && (
                 <div className="grid gap-2">
-                  <div className="text-base font-black">Say something back 💌</div>
+                  <PageTitle chapter="chapter 5 · a love note" title="Say something back…" />
 
                   {/* Sender's message for reference */}
                   {ask.personal_message && (
