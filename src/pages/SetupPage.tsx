@@ -9,18 +9,33 @@ import {
   encryptPhotoPayload,
 } from '../lib/crypto';
 import { compressImage } from '../lib/imageUtils';
-import { playStep, playConfirm, playPhotoAdd, playClick } from '../lib/sounds';
+import { playStep, playConfirm, playPhotoAdd, playClick, playPageFlip } from '../lib/sounds';
 import PhoneShell from '../components/PhoneShell';
 import FloatingHearts from '../components/FloatingHearts';
 import CoupleMatch from '../components/CoupleMatch';
 import type { Lang } from '../types';
 
 const STEPS = [
-  { title: "Who's asking?",        sub: 'Names go on the invite' },
-  { title: 'Pick your language',   sub: 'Sinhala, English or both' },
-  { title: 'Add your photos',      sub: 'Yours + theirs — up to 2 each' },
-  { title: 'Say something sweet',  sub: "A message only they'd get — optional" },
+  { title: "Who's asking?",        sub: 'Names go on the invite',          chapter: 'chapter 1 · the names' },
+  { title: 'Pick your language',   sub: 'Sinhala, English or both',         chapter: 'chapter 2 · the tongue' },
+  { title: 'Add your photos',      sub: 'Yours + theirs — up to 2 each',    chapter: 'chapter 3 · the photos' },
+  { title: 'Say something sweet',  sub: "A message only they'd get",         chapter: 'chapter 4 · a love note' },
 ];
+
+/* Book-page flip — same model as YesPage. Always rotates around the
+   left spine. Forward: current page flips left. Back: previous page
+   un-flips into place. */
+const pageVariants = {
+  enter: (dir: number) => ({
+    rotateY: dir > 0 ? 0 : -120,
+    opacity: dir > 0 ? 0 : 1,
+  }),
+  center: { rotateY: 0, opacity: 1 },
+  exit: (dir: number) => ({
+    rotateY: dir > 0 ? -120 : 0,
+    opacity: dir > 0 ? 1 : 0,
+  }),
+};
 
 function StepDots({ step }: { step: number }) {
   return (
@@ -59,16 +74,22 @@ export default function SetupPage() {
   const navigate = useNavigate();
   const { draft, setDraft } = useAskStore();
   const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<{ url: string; id: string } | null>(null);
   const [copied, setCopied] = useState(false);
 
   const LAST = STEPS.length - 1;
+  const goToStep = (next: number) => {
+    setDirection(next > step ? 1 : -1);
+    playPageFlip();
+    setStep(next);
+  };
   const next = () => {
-    if (step < LAST) { playStep(); setStep(step + 1); }
+    if (step < LAST) { playStep(); goToStep(step + 1); }
     else submit();
   };
-  const back = () => { playClick(); setStep(Math.max(0, step - 1)); };
+  const back = () => { playClick(); goToStep(Math.max(0, step - 1)); };
 
   const canNext = (() => {
     if (step === 0) return draft.sender_name.trim() && draft.receiver_name.trim();
@@ -210,45 +231,52 @@ export default function SetupPage() {
   /* ── Wizard ──────────────────────────────────────────────────────── */
   return (
     <PhoneShell>
-      <div className="h-full flex flex-col">
+      <div className="h-full flex flex-col overflow-hidden">
 
-        <div className="p-5 pb-2 flex items-center justify-between">
+        <div className="px-5 pt-4 pb-1 flex items-center justify-between">
           {step > 0 ? (
-            <button onClick={back} className="text-pink-500 font-extrabold text-lg">‹</button>
+            <button onClick={back} className="text-pink-500 font-extrabold text-lg leading-none">‹</button>
           ) : (
             <span className="w-4" />
           )}
           <span className="font-extrabold text-sm">💌 AskOut</span>
-          <span className="pill">{step + 1} / {STEPS.length}</span>
+          <span className="page-number">page {step + 1} of {STEPS.length}</span>
         </div>
 
         <div className="px-5">
           <StepDots step={step} />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3 }}
-              className="mt-4"
-            >
-              <div className="script text-pink-600 text-2xl leading-none">step {step + 1}</div>
-              <div className="text-2xl font-black leading-tight tracking-tight">{STEPS[step].title}</div>
-              <div className="text-ink-soft text-sm mt-0.5">{STEPS[step].sub}</div>
-            </motion.div>
-          </AnimatePresence>
         </div>
 
-        <div className="px-5 pt-5 pb-32 flex-1 overflow-y-auto no-scrollbar">
-          <AnimatePresence mode="wait">
+        {/* The book page — flips on every step change */}
+        <div className="flex-1 relative" style={{ perspective: 1400 }}>
+          <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={step}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.3, delay: 0.05 }}
+              custom={direction}
+              variants={pageVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: 0.55, ease: [0.32, 0.72, 0.24, 1] }}
+              style={{
+                transformOrigin: 'left center',
+                transformStyle: 'preserve-3d',
+                backfaceVisibility: 'hidden',
+                boxShadow: '0 8px 28px -10px rgba(190,24,93,.25)',
+              }}
+              className="absolute inset-0 px-5 pt-4 pb-3 paper rounded-xl overflow-y-auto no-scrollbar"
             >
+              {/* Handwritten chapter header */}
+              <div className="mb-3">
+                <div className="washi">{STEPS[step].chapter}</div>
+                <h2 className="script text-pink-600 leading-tight mt-1.5" style={{ fontSize: 28, color: '#be185d' }}>
+                  {STEPS[step].title}
+                </h2>
+                <span className="ink-underline" style={{ width: 110, marginTop: 2 }} />
+                <div className="text-ink-soft text-[12px] mt-1 italic">~ {STEPS[step].sub} ~</div>
+              </div>
+
+              <div>
 
               {/* ── Step 0: Names + optional WhatsApp ────────────── */}
               {step === 0 && (
@@ -487,13 +515,14 @@ export default function SetupPage() {
                 </div>
               )}
 
+              </div>
             </motion.div>
           </AnimatePresence>
         </div>
 
         <div
-          className="absolute left-0 right-0 bottom-0 px-5 py-4 pt-7"
-          style={{ background: 'linear-gradient(180deg, transparent, #fff7fb 28%)' }}
+          className="px-5 pb-3 pt-3 flex-none"
+          style={{ background: 'linear-gradient(180deg, transparent, #fff7fb 40%)' }}
         >
           <button
             className="btn btn-primary btn-block"

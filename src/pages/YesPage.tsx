@@ -73,20 +73,23 @@ function getQuickDates() {
   });
 }
 
-/* Book-page flip animation — pages turn around their vertical axis,
-   like the spine of a real book. `dir` is +1 for "forward" (turning a
-   page rightward off the stack) and -1 for "back". */
+/* Book-page flip — pages always rotate around the LEFT spine, the way
+   a real bound book works. dir=+1: current page lifts and flips left
+   to reveal the next. dir=-1: the previous page un-flips back into
+   place from its pre-flipped state. */
 const pageVariants = {
   enter: (dir: number) => ({
-    rotateY: dir > 0 ? 75 : -75,
-    x: dir > 0 ? 40 : -40,
-    opacity: 0,
+    // Forward: new page is revealed flat (was underneath). Back: previous
+    // page enters pre-flipped, will un-flip into view.
+    rotateY: dir > 0 ? 0 : -120,
+    opacity: dir > 0 ? 0 : 1,
   }),
-  center: { rotateY: 0, x: 0, opacity: 1 },
+  center: { rotateY: 0, opacity: 1 },
   exit: (dir: number) => ({
-    rotateY: dir > 0 ? -75 : 75,
-    x: dir > 0 ? -40 : 40,
-    opacity: 0,
+    // Forward: current page flips away to the left, around the spine.
+    // Back: current page stays flat, just fades out (uncovered).
+    rotateY: dir > 0 ? -120 : 0,
+    opacity: dir > 0 ? 1 : 0,
   }),
 };
 
@@ -507,10 +510,10 @@ export default function YesPage() {
 
         {/* Step content — book-page flips, no inner scroll */}
         <div
-          className="flex-1 px-5 pt-2 pb-3 relative"
-          style={{ perspective: 1200 }}
+          className="flex-1 relative"
+          style={{ perspective: 1400 }}
         >
-          <AnimatePresence mode="wait" custom={direction}>
+          <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={step}
               custom={direction}
@@ -518,9 +521,14 @@ export default function YesPage() {
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.45, ease: [0.4, 0, 0.2, 1] }}
-              style={{ transformOrigin: direction > 0 ? 'left center' : 'right center', transformStyle: 'preserve-3d' }}
-              className="h-full relative"
+              transition={{ duration: 0.55, ease: [0.32, 0.72, 0.24, 1] }}
+              style={{
+                transformOrigin: 'left center',
+                transformStyle: 'preserve-3d',
+                backfaceVisibility: 'hidden',
+                boxShadow: '0 8px 28px -10px rgba(190,24,93,.25)',
+              }}
+              className="absolute inset-0 px-5 pt-2 pb-3 paper rounded-xl overflow-hidden"
             >
               {step > 0 && <DoodleHearts />}
 
