@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import PhoneShell from '../components/PhoneShell';
 import FloatingHearts from '../components/FloatingHearts';
-import { listMyInvites, removeMyInvite, inviteUrl, type MyInvite } from '../lib/myInvites';
+import { listMyInvites, removeMyInvite, addMyInvite, inviteUrl, type MyInvite } from '../lib/myInvites';
 import { getAsk } from '../lib/supabase';
 import { playClick } from '../lib/sounds';
 import type { Ask } from '../types';
@@ -58,8 +58,15 @@ export default function MyInvitesPage() {
       const enriched = await Promise.all(
         saved.map(async (s) => {
           const a = await getAsk(s.id);
+          // If the receiver typed their own name on the cover page, the DB
+          // now has it — backfill localStorage so the name persists here too.
+          const liveReceiverName = a?.receiver_name?.trim() || s.receiver_name;
+          if (liveReceiverName && liveReceiverName !== s.receiver_name) {
+            addMyInvite({ ...s, receiver_name: liveReceiverName });
+          }
           return {
             ...s,
+            receiver_name: liveReceiverName,
             status: statusOf(a),
             no_count: a?.no_count || 0,
             opened_at: a?.opened_at || null,
@@ -151,7 +158,11 @@ export default function MyInvitesPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <div className="font-extrabold text-[15px] text-ink truncate">
-                            {r.receiver_name || 'unnamed'}
+                            {r.receiver_name || (
+                              <span className="italic text-ink-soft font-normal">
+                                {r.status === 'loading' ? '…' : 'waiting for name'}
+                              </span>
+                            )}
                           </div>
                           <span
                             className="text-[10px] font-extrabold uppercase tracking-wider px-1.5 py-0.5 rounded"

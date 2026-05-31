@@ -197,6 +197,12 @@ export default function DashboardPage() {
             >
               ✨ Send a new invite
             </button>
+            <button
+              className="btn btn-ghost btn-block"
+              onClick={() => navigate('/my-invites')}
+            >
+              💌 See all my invites
+            </button>
           </div>
 
           <div className="rounded-xl mt-3 mb-6 p-3 text-[12px] text-ink-soft leading-snug"
